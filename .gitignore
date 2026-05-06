@@ -1,0 +1,12 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+/build/
+/app/build/
+/.gradle-cache
+/.gradle-home/caches
+/.gradle-home
+/.gradle-user-home
+/.android
+/.kotlin
