@@ -194,6 +194,7 @@ class MainViewModel(
     private fun askQuestion(question: String) {
         val activeSettings = _settings.value
         val effectiveQuestion = buildOperationalQuestion(question, activeSettings)
+        val previousMessages = _messages.value
         val userMessage = ChatMessage(
             id = UUID.randomUUID().toString(),
             role = Role.USER,
@@ -219,7 +220,7 @@ class MainViewModel(
             )
             runCatching {
                 container.chatService.streamReply(
-                    history = _messages.value.filterNot { it.id == streamingId },
+                    history = previousMessages,
                     question = effectiveQuestion,
                     retrieval = retrieval,
                     settings = activeSettings
@@ -307,21 +308,16 @@ class MainViewModel(
         question: String,
         settings: AppSettings
     ): String {
-        return buildString {
-            append("Emergency category: ")
-            append(settings.selectedCategory.guidanceLabel)
-            append(". ")
-            append("Response mode: ")
-            append(
-                when (settings.responseMode) {
-                    ResponseMode.QUICK_HELP -> "quick help with short, immediate actions"
-                    ResponseMode.DETAILED_STEPS -> "detailed steps with more complete guidance"
-                }
-            )
-            append(". ")
-            append("User request: ")
-            append(question.trim())
+        val modeInstruction = when (settings.responseMode) {
+            ResponseMode.QUICK_HELP -> "Quick Help: short, immediate survival actions."
+            ResponseMode.DETAILED_STEPS -> "Detailed Steps: more complete guidance with practical checks."
         }
+        return """
+            Emergency category: ${settings.selectedCategory.guidanceLabel}
+            Response mode: $modeInstruction
+            User situation:
+            ${question.trim()}
+        """.trimIndent()
     }
 
     private fun buildCitationSummaries(retrieval: List<RetrievalResult>): List<CitationRef> {

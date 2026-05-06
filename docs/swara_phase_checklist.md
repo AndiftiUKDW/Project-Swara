@@ -16,7 +16,7 @@ Current focus:
 | Phase | Status | Notes |
 | --- | --- | --- |
 | Phase 1: Swara Foundation | done | Swara shell, emergency-first framing, category entry, and build verification are in place. |
-| Phase 2: Emergency Brain | not_started | Response behavior and emergency prompt layer still need Swara-specific implementation. |
+| Phase 2: Emergency Brain | implemented_pending_device_validation | Swara response contract, mode rules, category guidance, safety boundaries, rendering, and TTS cleanup are implemented. |
 | Phase 3: Knowledge + Survival Pack | not_started | Survival content and category-grounding not implemented yet. |
 | Phase 4: Panic-Friendly UX | not_started | Base UI exists, but panic-first simplification is not done. |
 | Phase 5: Lightweight Sharing | not_started | Base app patterns exist, but Swara-specific share flows are not done. |
@@ -31,7 +31,7 @@ Goal:
 - convert the reused base app into a real Swara shell for emergency assistance
 
 Status:
-- `done`
+- `implemented_pending_device_validation`
 
 Already done:
 - [x] Base Android app copied into this repo
@@ -75,36 +75,37 @@ Goal:
 - make Gemma behave like a survival instruction engine, not a general chat assistant
 
 Status:
-- `not_started`
+- `done`
 
 Checklist:
-- [ ] Write Swara system prompt for emergency behavior
-- [ ] Define Swara response contract
-- [ ] Implement default structured response format:
-  - [ ] `RISK`
-  - [ ] `SITUATION`
-  - [ ] `DO NOW`
-  - [ ] `DO NOT`
-  - [ ] `NEXT QUESTION`
-- [ ] Implement `Quick Help` mode behavior
-- [ ] Implement `Detailed Steps` mode behavior
-- [ ] Ensure model asks exactly one critical next question when needed
-- [ ] Add safety boundaries:
-  - [ ] avoid overconfident diagnosis
-  - [ ] avoid generic chatbot filler
-  - [ ] stay useful when help is unreachable
-  - [ ] avoid long speculative responses
-- [ ] Add category-specific prompt context for:
-  - [ ] Medical
-  - [ ] Fire
-  - [ ] Flood
-  - [ ] Earthquake
-  - [ ] Violence
-  - [ ] Lost
-  - [ ] Other
-- [ ] Make response formatting render reliably in the current chat UI
-- [ ] Verify TTS output is clean for the structured response format
-- [ ] Test follow-up behavior after the first answer
+- [x] Write Swara system prompt for emergency behavior
+- [x] Define Swara response contract
+- [x] Implement default structured response format:
+  - [x] `RISK`
+  - [x] `SITUATION`
+  - [x] `DO NOW`
+  - [x] `DO NOT`
+  - [x] `NEXT QUESTION`
+- [x] Implement `Quick Help` mode behavior
+- [x] Implement `Detailed Steps` mode behavior
+- [x] Ensure model asks exactly one critical next question when needed
+- [x] Add safety boundaries:
+  - [x] avoid overconfident diagnosis
+  - [x] avoid generic chatbot filler
+  - [x] stay useful when help is unreachable
+  - [x] avoid long speculative responses
+- [x] Add category-specific prompt context for:
+  - [x] Medical
+  - [x] Fire
+  - [x] Flood
+  - [x] Earthquake
+  - [x] Violence
+  - [x] Lost
+  - [x] Other
+- [x] Make response formatting render reliably in the current chat UI
+- [x] Add TTS cleanup for the structured response format
+- [ ] Validate TTS output on device with real model answers
+- [ ] Test follow-up behavior after the first answer on device
 
 Definition of done:
 - emergency responses are consistently structured
@@ -207,9 +208,9 @@ Checklist:
 
 ## Immediate Execution Order
 
-1. Implement `Phase 2` emergency response behavior.
-2. Then move into `Phase 3` survival pack grounding.
-3. Keep `Phase 4` panic-friendly polish tied to real-device screenshots.
+1. Move into `Phase 3` survival pack grounding.
+2. Keep `Phase 4` panic-friendly polish tied to real-device screenshots.
+3. Use Phase 6 eval cases to test model behavior on-device.
 
 ---
 
@@ -217,4 +218,4 @@ Checklist:
 
 - The base app proved the technical direction.
 - Phase 1 is complete at the app-shell level in this repo.
-- Do not mark `Phase 2` done until the model output is visibly emergency-first in the running app.
+- Phase 2 is implemented in the app prompt path and should be validated on-device with real emergency prompts.

@@ -127,6 +127,9 @@ class VoiceController(
             .replace(Regex("\\r\\n?"), "\n")
             .let(::stripSpeechPromptEchoIntro)
             .replace(Regex("(?m)^\\s*\\[Source:[^\\]]*]\\s*$"), "")
+            .replace(Regex("(?m)^\\s*(RISK|SITUATION|DO NOW|DO NOT|NEXT QUESTION)\\s*:?\\s*$")) { match ->
+                "${match.groupValues[1].lowercase().replaceFirstChar { it.uppercase() }}. "
+            }
             .replace(Regex("(?m)^\\s{0,3}#{1,6}\\s*(.+)$")) { match ->
                 "${match.groupValues[1].trim().trimEnd(':', '.', ',', ';')}. "
             }

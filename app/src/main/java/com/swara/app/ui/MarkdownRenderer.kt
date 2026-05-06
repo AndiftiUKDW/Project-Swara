@@ -454,6 +454,7 @@ private fun normalizeMarkdownInput(raw: String): String {
         .replace(Regex("\\r\\n?"), "\n")
         .replace(Regex("[ \\t]+\\n"), "\n")
         .let(::stripPromptEchoIntro)
+        .let(::normalizeEmergencyResponseSpacing)
         .let(::convertSectionsToMarkdown)
         .let(::normalizeMarkdownLists)
         .let(::normalizeQuotesAndRules)
@@ -461,6 +462,19 @@ private fun normalizeMarkdownInput(raw: String): String {
         .let(::stripDanglingFormattingTokens)
         .replace(Regex("\\n{3,}"), "\n\n")
         .trim()
+}
+
+private fun normalizeEmergencyResponseSpacing(text: String): String {
+    val sectionNames = "(RISK|SITUATION|DO NOW|DO NOT|NEXT QUESTION)"
+    return text
+        .replace(Regex("""(?i)\b$sectionNames\s*:?\s*""")) { match ->
+            "\n\n${match.groupValues[1].uppercase()}\n"
+        }
+        .replace(Regex("""(?<=[a-zA-Z)])\.(?=$sectionNames\b)"""), ".\n\n")
+        .replace(Regex("""(?m)(?<!^)(?<!\n)(\d+\.\s*)"""), "\n$1")
+        .replace(Regex("""(?m)(\d+)\.(?=\S)"""), "$1. ")
+        .replace(Regex("""(?m)^(\d+\.)\s*"""), "$1 ")
+        .replace(Regex("""[ \t]{2,}"""), " ")
 }
 
 private fun convertSectionsToMarkdown(text: String): String {
@@ -476,6 +490,10 @@ private fun convertSectionsToMarkdown(text: String): String {
         .replace(
             Regex("""(?m)^([A-Z][A-Za-z0-9 /&()'-]{1,40}):\s*(.+)$"""),
             "## $1\n$2"
+        )
+        .replace(
+            Regex("""(?m)^\s*(RISK|SITUATION|DO NOW|DO NOT|NEXT QUESTION)\s*$"""),
+            "## $1"
         )
         .replace(Regex("""(?<=[\.\)])\s*([A-Z][A-Za-z0-9 /&()'-]{1,40}:)\s*(?=[A-Z])""")) { match ->
             "\n\n## ${match.groupValues[1].removeSuffix(":")}\n"

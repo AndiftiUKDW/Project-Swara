@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -330,8 +331,8 @@ private fun ChatPanel(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     if (!state.statusMessage.isNullOrBlank()) {
@@ -920,6 +921,7 @@ private fun CitationSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ComposerPanel(
     draft: String,
@@ -934,12 +936,27 @@ private fun ComposerPanel(
     onSetResponseMode: (ResponseMode) -> Unit
 ) {
     val isSpeaking = voiceState == VoiceState.Speaking
+    var showContextSheet by remember { mutableStateOf(false) }
     val actionLabel = when {
         isSpeaking -> "Speaking reply"
         voiceState == VoiceState.Listening -> "Listening"
         voiceState == VoiceState.Transcribing -> "Transcribing"
         isBusy -> "Generating reply"
         else -> ""
+    }
+
+    if (showContextSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showContextSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            EmergencyContextSheet(
+                selectedCategory = settings.selectedCategory,
+                responseMode = settings.responseMode,
+                onSelectCategory = onSetEmergencyCategory,
+                onSelectMode = onSetResponseMode
+            )
+        }
     }
 
     Surface(
@@ -958,17 +975,16 @@ private fun ComposerPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (voiceState is VoiceState.Error) {
                 InlineBanner(text = voiceState.message)
             }
-            EmergencyContextCard(
+            EmergencyContextBar(
                 selectedCategory = settings.selectedCategory,
                 responseMode = settings.responseMode,
-                onSelectCategory = onSetEmergencyCategory,
-                onSelectMode = onSetResponseMode
+                onClick = { showContextSheet = true }
             )
             if (actionLabel.isNotBlank()) {
                 Text(
@@ -1006,11 +1022,13 @@ private fun ComposerPanel(
                     OutlinedTextField(
                         value = draft,
                         onValueChange = onDraftChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Describe the emergency or ask what to do next") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 54.dp, max = 116.dp),
+                        placeholder = { Text("Describe the emergency") },
                         shape = RoundedCornerShape(20.dp),
                         minLines = 1,
-                        maxLines = 4,
+                        maxLines = 3,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         enabled = !isBusy && voiceState != VoiceState.Listening && voiceState != VoiceState.Transcribing,
                         colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
@@ -1039,42 +1057,84 @@ private fun ComposerPanel(
     }
 }
 
+@Composable
+private fun EmergencyContextBar(
+    selectedCategory: EmergencyCategory,
+    responseMode: ResponseMode,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = selectedCategory.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = responseMode.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = "Change",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EmergencyContextCard(
+private fun EmergencyContextSheet(
     selectedCategory: EmergencyCategory,
     responseMode: ResponseMode,
     onSelectCategory: (EmergencyCategory) -> Unit,
     onSelectMode: (ResponseMode) -> Unit
 ) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.34f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-        )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = "Emergency context",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+        Text(
+            text = "Emergency context",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+        SectionCard(title = "Category") {
             EmergencyCategorySelector(
                 selectedCategory = selectedCategory,
                 onSelect = onSelectCategory
             )
+        }
+        SectionCard(title = "Answer mode") {
             ResponseModeSelector(
                 selectedMode = responseMode,
                 onSelect = onSelectMode
             )
         }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
