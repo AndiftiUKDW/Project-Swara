@@ -8,6 +8,7 @@ import com.swara.app.data.model.RetrievalResult
 import com.swara.app.data.model.Role
 import com.swara.app.data.model.ModelState
 import com.swara.app.data.model.ResponseMode
+import com.swara.app.data.model.SurvivalPackGuide
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
@@ -33,12 +34,13 @@ class GemmaChatService(
         history: List<ChatMessage>,
         question: String,
         retrieval: List<RetrievalResult>,
+        survivalPack: SurvivalPackGuide?,
         settings: AppSettings
     ): Flow<ChatMessage> = flow {
         val modelPath = (modelManager.state.value as? ModelState.Ready)?.modelPath
             ?: error("Gemma model not installed")
         val engine = getOrCreateEngine(modelPath)
-        val systemPrompt = buildSystemPrompt(retrieval, settings)
+        val systemPrompt = buildSystemPrompt(retrieval, survivalPack, settings)
         val initialMessages = history.map { message ->
             when (message.role) {
                 Role.USER -> Message.user(message.text)
@@ -104,10 +106,12 @@ class GemmaChatService(
 
     private fun buildSystemPrompt(
         retrieval: List<RetrievalResult>,
+        survivalPack: SurvivalPackGuide?,
         settings: AppSettings
     ): String {
         val responseContract = buildResponseContract(settings.responseMode)
         val categoryGuidance = buildCategoryGuidance(settings.selectedCategory)
+        val survivalPackBlock = buildSurvivalPackBlock(survivalPack, settings.responseMode)
         if (retrieval.isEmpty()) {
             return """
                 You are Swara, an offline-first emergency guidance assistant powered by Gemma 4.
@@ -122,6 +126,9 @@ class GemmaChatService(
 
                 Active emergency category:
                 $categoryGuidance
+
+                Bundled survival pack:
+                $survivalPackBlock
 
                 Required response contract:
                 $responseContract
@@ -169,6 +176,9 @@ class GemmaChatService(
             Active emergency category:
             $categoryGuidance
 
+            Bundled survival pack:
+            $survivalPackBlock
+
             Required response contract:
             $responseContract
 
@@ -188,6 +198,37 @@ class GemmaChatService(
 
             Retrieved context:
             $contextBlock
+        """.trimIndent()
+    }
+
+    private fun buildSurvivalPackBlock(
+        survivalPack: SurvivalPackGuide?,
+        mode: ResponseMode
+    ): String {
+        if (survivalPack == null) {
+            return """
+                No bundled survival pack is available for this category in the current Swara scope.
+                Do not invent source-specific guidance for this category.
+            """.trimIndent()
+        }
+        val primarySteps = when (mode) {
+            ResponseMode.QUICK_HELP -> survivalPack.quickHelp
+            ResponseMode.DETAILED_STEPS -> survivalPack.detailedSteps
+        }
+        return """
+            ${survivalPack.title}
+            Pack version: ${survivalPack.version}
+            Last updated: ${survivalPack.lastUpdated}
+            Scope: ${survivalPack.scope}
+            Source label: ${survivalPack.sourceLabel}
+            Source URLs: ${survivalPack.sourceUrls.joinToString(", ")}
+            Use these as the primary safety facts when relevant.
+            Immediate guidance:
+            ${primarySteps.toNumberedLines()}
+            Avoid:
+            ${survivalPack.doNot.toNumberedLines()}
+            Useful supplies:
+            ${survivalPack.kit.joinToString(", ")}
         """.trimIndent()
     }
 
@@ -253,8 +294,8 @@ class GemmaChatService(
             """.trimIndent()
             EmergencyCategory.VIOLENCE -> """
                 Violence or personal safety emergency.
-                Prioritize escape, hiding, de-escalation only when safe, silence, trusted contact, and avoiding confrontation.
-                Avoid escalating language or instructions to fight unless there is no safer option.
+                Prioritize leaving early if safe, creating distance, avoiding confrontation, reaching public or staffed areas, and contacting trusted local help when safe.
+                Do not provide school-shooting or active-shooter tactics. Keep guidance to general personal safety, de-escalation, escape from immediate threat, and post-incident documentation.
             """.trimIndent()
             EmergencyCategory.LOST -> """
                 Lost or stranded emergency.
@@ -266,5 +307,10 @@ class GemmaChatService(
                 Prioritize immediate danger removal, airway/breathing/bleeding checks, shelter, communication, and one focused next question.
             """.trimIndent()
         }
+    }
+
+    private fun List<String>.toNumberedLines(): String {
+        if (isEmpty()) return "None."
+        return mapIndexed { index, item -> "${index + 1}. $item" }.joinToString("\n")
     }
 }

@@ -14,6 +14,8 @@ import com.swara.app.data.model.ModelState
 import com.swara.app.data.model.RetrievalResult
 import com.swara.app.data.model.ResponseMode
 import com.swara.app.data.model.Role
+import com.swara.app.data.model.SurvivalPackGuide
+import com.swara.app.data.repo.SurvivalPackMetadata
 import com.swara.app.data.model.VoiceState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +37,8 @@ data class MainUiState(
     val modelState: ModelState = ModelState.NotInstalled,
     val voiceState: VoiceState = VoiceState.Idle,
     val settings: AppSettings = AppSettings(),
+    val survivalPacks: List<SurvivalPackGuide> = emptyList(),
+    val survivalPackMetadata: SurvivalPackMetadata = SurvivalPackMetadata(),
     val isBusy: Boolean = false,
     val statusMessage: String? = null
 )
@@ -87,6 +91,8 @@ class MainViewModel(
             modelState = inputs.modelState,
             voiceState = inputs.voiceState,
             settings = inputs.settings,
+            survivalPacks = container.survivalPackRepository.allPacks(),
+            survivalPackMetadata = container.survivalPackRepository.metadata(),
             isBusy = inputs.busy,
             statusMessage = inputs.status
         )
@@ -208,6 +214,7 @@ class MainViewModel(
                 documentScope = activeSettings.documentScope,
                 limit = activeSettings.maxContextChunks
             )
+            val survivalPack = container.survivalPackRepository.findFor(activeSettings.selectedCategory)
             val citationSummaries = buildCitationSummaries(retrieval)
             val streamingId = UUID.randomUUID().toString()
             _evidenceByMessage.value = _evidenceByMessage.value + (streamingId to retrieval)
@@ -223,6 +230,7 @@ class MainViewModel(
                     history = previousMessages,
                     question = effectiveQuestion,
                     retrieval = retrieval,
+                    survivalPack = survivalPack,
                     settings = activeSettings
                 ).collect { message ->
                     _messages.value = _messages.value.map {

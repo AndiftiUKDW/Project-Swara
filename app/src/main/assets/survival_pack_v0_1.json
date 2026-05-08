@@ -1,0 +1,259 @@
+{
+  "version": "0.1",
+  "lastUpdated": "2026-05-08",
+  "scope": "Offline Swara MVP survival guidance for medical, fire, flood, earthquake, violence or personal safety, lost, and general emergencies. School-shooting and active-shooter guidance are excluded from this pack.",
+  "packs": [
+    {
+      "category": "MEDICAL",
+      "title": "Medical Emergency Pack",
+      "sourceLabel": "Red Cross, Stop the Bleed, Mayo Clinic",
+      "sourceUrls": [
+        "https://www.redcross.org/take-a-class/resources/learn-first-aid/bleeding-life-threatening-external",
+        "https://www.stopthebleed.org/",
+        "https://www.mayoclinic.org/first-aid/first-aid-cuts/basics/art-20056711"
+      ],
+      "quickHelp": [
+        "Check scene safety before touching the person.",
+        "For heavy bleeding, apply firm direct pressure with clean cloth or gauze.",
+        "If bleeding soaks through, add more cloth and keep pressing.",
+        "Call local emergency help if reachable, especially for severe bleeding, trouble breathing, chest pain, or unconsciousness."
+      ],
+      "detailedSteps": [
+        "Move yourself and the injured person away from immediate danger if it is safe.",
+        "Check responsiveness and breathing. If the person is not breathing normally, emergency help is urgent.",
+        "For severe bleeding, expose the wound enough to see it, then press firmly and continuously.",
+        "Keep the person still, warm, and lying down if they feel faint or weak.",
+        "Do not remove embedded objects. Press around the object and stabilize it.",
+        "Do not give food or drink to a person who may need urgent medical care."
+      ],
+      "doNot": [
+        "Do not use a tourniquet unless bleeding is life-threatening and direct pressure is not enough or impossible.",
+        "Do not remove deep embedded objects.",
+        "Do not delay pressure on severe bleeding while searching for perfect supplies."
+      ],
+      "kit": [
+        "Clean cloth or gauze",
+        "Bandages",
+        "Gloves if available",
+        "Emergency contact information"
+      ]
+    },
+    {
+      "category": "FIRE",
+      "title": "Fire Emergency Pack",
+      "sourceLabel": "Red Cross, Ready.gov",
+      "sourceUrls": [
+        "https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/fire.html",
+        "https://www.ready.gov/home-fires"
+      ],
+      "quickHelp": [
+        "Leave the building immediately if there is fire, smoke, or alarm.",
+        "Stay low under smoke and cover nose and mouth if needed.",
+        "Feel doors before opening. If hot, use another exit.",
+        "Once outside, stay out and call emergency help if reachable."
+      ],
+      "detailedSteps": [
+        "Alert people nearby while moving toward the safest exit.",
+        "If smoke is present, crawl or stay low because cleaner air is usually lower.",
+        "Before opening a closed door, check heat with the back of your hand.",
+        "Close doors behind you if possible to slow fire spread.",
+        "Go to a safe meeting point away from the structure.",
+        "If trapped, seal gaps around doors, signal from a window, and call for help if possible."
+      ],
+      "doNot": [
+        "Do not re-enter a burning or smoky building.",
+        "Do not use elevators during a fire.",
+        "Do not hide in closets or bathrooms if evacuation is possible."
+      ],
+      "kit": [
+        "Flashlight",
+        "Whistle",
+        "Charged phone or power bank",
+        "N95 or cloth face covering if available"
+      ]
+    },
+    {
+      "category": "FLOOD",
+      "title": "Flood Emergency Pack",
+      "sourceLabel": "BNPB, Ready.gov, Red Cross, CDC",
+      "sourceUrls": [
+        "https://bnpb.go.id/storage/app/media/Buku%20BNPB/Buku%20Saku%20Bencana%20BNPB.pdf",
+        "https://www.ready.gov/floods",
+        "https://www.redcross.org/flood",
+        "https://www.cdc.gov/floods/safety/index.html"
+      ],
+      "quickHelp": [
+        "Move to higher ground immediately if water is rising.",
+        "Avoid walking, swimming, or driving through floodwater.",
+        "Stay away from downed power lines and electrical equipment in wet areas.",
+        "Use safe bottled, boiled, or treated water if normal water may be contaminated."
+      ],
+      "detailedSteps": [
+        "If evacuation is ordered or water is rising, leave early by a safe route.",
+        "Move important medicines, documents, and phone charging supplies into a waterproof bag if time allows.",
+        "Avoid bridges or roads covered by water because the road surface may be damaged or missing.",
+        "If trapped in a building, move to a higher floor, but avoid closed attics without roof escape.",
+        "After flooding, avoid contact with floodwater when possible because it may contain sewage, chemicals, or debris.",
+        "If wet electrical equipment or outlets are present, stay away until power is confirmed off."
+      ],
+      "doNot": [
+        "Do not drive through floodwater.",
+        "Do not touch electrical devices while standing in water.",
+        "Do not drink untreated flood-contaminated water."
+      ],
+      "kit": [
+        "Drinking water",
+        "Waterproof document pouch",
+        "Flashlight",
+        "Power bank",
+        "Basic medicines"
+      ]
+    },
+    {
+      "category": "EARTHQUAKE",
+      "title": "Earthquake Emergency Pack",
+      "sourceLabel": "BNPB, Ready.gov, Red Cross, CDC",
+      "sourceUrls": [
+        "https://bnpb.go.id/storage/app/media/Buku%20BNPB/Buku%20Saku%20Bencana%20BNPB.pdf",
+        "https://www.ready.gov/earthquakes",
+        "https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/earthquake.html",
+        "https://www.cdc.gov/earthquakes/safety/index.html"
+      ],
+      "quickHelp": [
+        "During shaking, drop, cover, and hold on.",
+        "Stay away from glass, windows, heavy furniture, and falling objects.",
+        "If outside, move to an open area away from buildings, trees, and power lines.",
+        "After shaking stops, check injuries, fire, gas smell, unstable structures, and safe exit routes."
+      ],
+      "detailedSteps": [
+        "Drop to hands and knees so the shaking does not knock you down.",
+        "Cover head and neck under sturdy furniture if available, or beside an interior wall away from glass.",
+        "Hold on to shelter until shaking stops.",
+        "If in bed, stay there and protect your head with a pillow unless a heavy object may fall on you.",
+        "After shaking, expect aftershocks and move carefully around broken glass or debris.",
+        "If you smell gas, hear hissing, or see fire risk, leave the area and avoid flames or switches."
+      ],
+      "doNot": [
+        "Do not run outside during active shaking if you are indoors.",
+        "Do not stand in doorways unless it is the only nearby sturdy cover.",
+        "Do not use elevators after an earthquake."
+      ],
+      "kit": [
+        "Shoes near bed",
+        "Flashlight",
+        "Whistle",
+        "Water",
+        "Basic first aid supplies"
+      ]
+    },
+    {
+      "category": "VIOLENCE",
+      "title": "Violence and Personal Safety Pack",
+      "sourceLabel": "Ready.gov public spaces, NIH workplace violence prevention",
+      "sourceUrls": [
+        "https://www.ready.gov/public-spaces",
+        "https://ors.od.nih.gov/sr/dohs/safety/NIH-civil/Pages/workplace-violence-prevention.aspx"
+      ],
+      "quickHelp": [
+        "Move away from the threat if there is a clear safe path.",
+        "Create distance, get behind a barrier, and avoid confrontation if possible.",
+        "Call local emergency help or a trusted contact when it is safe to do so.",
+        "If you are with others, move together toward a safer public or staffed area."
+      ],
+      "detailedSteps": [
+        "Trust immediate warning signs such as threats, stalking, escalating anger, weapon display, or blocked exits.",
+        "Leave early if you can do so without escalating the situation.",
+        "Keep your voice low, use short words, and avoid arguing if de-escalation is the safest option.",
+        "Move toward lighted, public, staffed, or populated areas when possible.",
+        "Share your location and situation with a trusted person when it is safe.",
+        "After reaching safety, document key details such as time, place, description, injuries, witnesses, and messages."
+      ],
+      "doNot": [
+        "Do not argue, threaten, film openly, or challenge the person if it increases danger.",
+        "Do not stay to collect belongings if leaving is the safer option.",
+        "Do not return alone to a place where the threat may still be present.",
+        "Do not treat this pack as school-shooting or active-shooter guidance."
+      ],
+      "kit": [
+        "Charged phone",
+        "Trusted contact list",
+        "Whistle or personal alarm if available",
+        "Small flashlight",
+        "Transport or safe exit plan"
+      ]
+    },
+    {
+      "category": "LOST",
+      "title": "Lost or Stranded Pack",
+      "sourceLabel": "US Forest Service, National Park Service",
+      "sourceUrls": [
+        "https://www.fs.usda.gov/visit/know-before-you-go/if-you-get-lost",
+        "https://home.nps.gov/articles/missing-persons-in-the-national-parks.htm"
+      ],
+      "quickHelp": [
+        "Stop moving unless staying put is immediately dangerous.",
+        "Stay visible and make signals with sound, light, color, or movement.",
+        "Conserve phone battery and send your location if signal exists.",
+        "Prepare shelter before dark or bad weather."
+      ],
+      "detailedSteps": [
+        "Stop, breathe, and avoid panic movement that makes search harder.",
+        "Check for immediate hazards such as cold, heat, injury, rising water, or unstable ground.",
+        "If you have signal, contact help and share location, landmarks, direction of travel, and condition.",
+        "Mark your location with bright objects, ground markings, or repeated signals.",
+        "Use a whistle, mirror, flashlight, or three repeated signals to attract attention.",
+        "Protect warmth and dryness before night; use layers, natural windbreaks, and insulation from the ground.",
+        "Drink safe water if available, but avoid unknown plants or unsafe water treatment claims."
+      ],
+      "doNot": [
+        "Do not wander randomly after realizing you are lost.",
+        "Do not split from your group.",
+        "Do not drain your phone with nonessential use."
+      ],
+      "kit": [
+        "Whistle",
+        "Flashlight",
+        "Power bank",
+        "Bright cloth",
+        "Water",
+        "Warm layer"
+      ]
+    },
+    {
+      "category": "OTHER",
+      "title": "General Emergency Pack",
+      "sourceLabel": "BNPB, Ready.gov",
+      "sourceUrls": [
+        "https://bnpb.go.id/storage/app/media/Buku%20BNPB/Buku%20Saku%20Bencana%20BNPB.pdf",
+        "https://www.ready.gov/kit"
+      ],
+      "quickHelp": [
+        "Move away from immediate danger if it is safe.",
+        "Check breathing, severe bleeding, fire, floodwater, unstable structures, and unsafe electricity.",
+        "Contact local emergency help if reachable.",
+        "Use one clear next action instead of doing many things at once."
+      ],
+      "detailedSteps": [
+        "Identify the most immediate threat to life: breathing, severe bleeding, fire, water, collapse, exposure, or violence nearby.",
+        "Move to a safer place only if movement reduces risk.",
+        "Stabilize urgent medical risks first, especially severe bleeding or abnormal breathing.",
+        "Preserve phone battery and send location to a trusted contact if possible.",
+        "Gather essential items only if it does not delay escape: water, medicine, documents, light, and phone power.",
+        "Ask one critical question at a time to decide the next safest step."
+      ],
+      "doNot": [
+        "Do not delay evacuation to collect nonessential items.",
+        "Do not enter unsafe structures, floodwater, smoke, or unstable areas.",
+        "Do not give instructions beyond the known situation."
+      ],
+      "kit": [
+        "Water",
+        "First aid supplies",
+        "Flashlight",
+        "Power bank",
+        "Important documents",
+        "Basic medicines"
+      ]
+    }
+  ]
+}

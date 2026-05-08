@@ -17,7 +17,7 @@ Current focus:
 | --- | --- | --- |
 | Phase 1: Swara Foundation | done | Swara shell, emergency-first framing, category entry, and build verification are in place. |
 | Phase 2: Emergency Brain | implemented_pending_device_validation | Swara response contract, mode rules, category guidance, safety boundaries, rendering, and TTS cleanup are implemented. |
-| Phase 3: Knowledge + Survival Pack | not_started | Survival content and category-grounding not implemented yet. |
+| Phase 3: Knowledge + Survival Pack | implemented_pending_device_validation | Bundled survival-pack grounding, metadata, and read-only Survival Book mode are implemented. |
 | Phase 4: Panic-Friendly UX | not_started | Base UI exists, but panic-first simplification is not done. |
 | Phase 5: Lightweight Sharing | not_started | Base app patterns exist, but Swara-specific share flows are not done. |
 | Phase 6: Proof Package | not_started | No Swara-specific benchmark/proof package yet. |
@@ -123,15 +123,39 @@ Goal:
 - ground responses in offline emergency content
 
 Status:
-- `not_started`
+- `implemented_pending_device_validation`
 
 Checklist:
-- [ ] Create small offline survival pack
-- [ ] Add category-based knowledge lookup
-- [ ] Insert category-relevant content into prompt context
-- [ ] Add source label / metadata
-- [ ] Add last-updated metadata
-- [ ] Add survival book mode without inference
+- [x] Create small offline survival pack
+- [x] Exclude school-shooting and active-shooter content from bundled survival-pack scope
+- [x] Add category-based knowledge lookup
+- [x] Insert category-relevant content into prompt context
+- [x] Add source label / metadata
+- [x] Add last-updated metadata
+- [x] Add survival book mode without inference
+
+Phase 3A implementation:
+- [x] Add `app/src/main/assets/survival_pack_v0_1.json`
+- [x] Add `SurvivalPackRepository`
+- [x] Wire repository through `AppContainer`
+- [x] Pass selected category pack into `GemmaChatService`
+- [x] Add `VIOLENCE` bundled pack for general personal safety while excluding school-shooting and active-shooter guidance
+- [ ] Validate on device that Medical, Fire, Flood, Earthquake, Lost, and Other answers use the bundled pack
+
+Phase 3B implementation:
+- [x] Add catalog `version`
+- [x] Add catalog `lastUpdated`
+- [x] Add catalog `scope`
+- [x] Add per-pack source URLs
+- [x] Surface version, update date, scope, source labels, and source URLs in Gemma prompt context
+
+Phase 3C implementation:
+- [x] Expose bundled packs to UI state
+- [x] Add Survival Book section to Swara Kit
+- [x] Add read-only pack list
+- [x] Add read-only pack detail screen
+- [x] Show quick help, detailed steps, do-not list, supplies, and sources without model inference
+- [ ] Validate Survival Book navigation on device
 
 ---
 

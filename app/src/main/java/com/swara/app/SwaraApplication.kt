@@ -2,6 +2,7 @@ package com.swara.app
 
 import android.app.Application
 import com.swara.app.data.repo.DocumentRepository
+import com.swara.app.data.repo.SurvivalPackRepository
 import com.swara.app.services.Chunker
 import com.swara.app.services.DocumentParser
 import com.swara.app.services.GemmaChatService
@@ -25,6 +26,7 @@ class SwaraApplication : Application() {
             modelManager = modelManager,
             chatService = GemmaChatService(modelManager),
             documentRepository = repository,
+            survivalPackRepository = SurvivalPackRepository(this),
             voiceController = VoiceController(this)
         )
     }

@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -93,6 +94,7 @@ import com.swara.app.data.model.ModelState
 import com.swara.app.data.model.RetrievalResult
 import com.swara.app.data.model.ResponseMode
 import com.swara.app.data.model.Role
+import com.swara.app.data.model.SurvivalPackGuide
 import com.swara.app.data.model.VoiceState
 
 @Composable
@@ -149,6 +151,8 @@ private fun SwaraScreen(
     onSetEmergencyCategory: (EmergencyCategory) -> Unit,
     onSetResponseMode: (ResponseMode) -> Unit
 ) {
+    var selectedSurvivalPack by remember { mutableStateOf<SurvivalPackGuide?>(null) }
+
     if (showLibrarySheet) {
         ModalBottomSheet(
             onDismissRequest = onHideLibrary,
@@ -162,9 +166,21 @@ private fun SwaraScreen(
                 onToggleDocumentScope = onToggleDocumentScope,
                 onSetAutoSpeak = onSetAutoSpeak,
                 onSetMaxChunks = onSetMaxChunks,
-                onDeleteDocument = onDeleteDocument
+                onDeleteDocument = onDeleteDocument,
+                onOpenSurvivalPack = {
+                    selectedSurvivalPack = it
+                    onHideLibrary()
+                }
             )
         }
+    }
+
+    selectedSurvivalPack?.let { pack ->
+        SurvivalBookScreen(
+            pack = pack,
+            onBack = { selectedSurvivalPack = null }
+        )
+        return
     }
 
     Scaffold(
@@ -1188,7 +1204,8 @@ private fun LibrarySheet(
     onToggleDocumentScope: (String) -> Unit,
     onSetAutoSpeak: (Boolean) -> Unit,
     onSetMaxChunks: (Int) -> Unit,
-    onDeleteDocument: (String) -> Unit
+    onDeleteDocument: (String) -> Unit,
+    onOpenSurvivalPack: (SurvivalPackGuide) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -1208,6 +1225,29 @@ private fun LibrarySheet(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
+        SectionCard(title = "Bundled Survival Book") {
+            Text(
+                text = "Version ${state.survivalPackMetadata.version} • Updated ${state.survivalPackMetadata.lastUpdated}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = state.survivalPackMetadata.scope,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                state.survivalPacks.forEach { pack ->
+                    SurvivalPackRow(
+                        pack = pack,
+                        onOpen = { onOpenSurvivalPack(pack) }
+                    )
+                }
+            }
+        }
 
         SectionCard(title = "Model") {
             SheetActionRow(
@@ -1299,6 +1339,225 @@ private fun LibrarySheet(
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun SurvivalPackRow(
+    pack: SurvivalPackGuide,
+    onOpen: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(13.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(36.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Rounded.Description,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = pack.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = pack.sourceLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            AssistChip(
+                onClick = onOpen,
+                label = { Text("Read") }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SurvivalBookScreen(
+    pack: SurvivalPackGuide,
+    onBack: () -> Unit
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+                )
+            ) {
+                CenterAlignedTopAppBar(
+                    colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent
+                    ),
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    title = {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Survival Book",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Read-only offline pack",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                )
+            }
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(26.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = pack.title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "No Gemma inference here. This is the bundled offline pack.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Version ${pack.version} • Updated ${pack.lastUpdated}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            item {
+                SurvivalBookSection(
+                    title = "Quick Help",
+                    items = pack.quickHelp
+                )
+            }
+            item {
+                SurvivalBookSection(
+                    title = "Detailed Steps",
+                    items = pack.detailedSteps
+                )
+            }
+            item {
+                SurvivalBookSection(
+                    title = "Do Not",
+                    items = pack.doNot
+                )
+            }
+            item {
+                SurvivalBookSection(
+                    title = "Useful Supplies",
+                    items = pack.kit
+                )
+            }
+            item {
+                SurvivalBookSources(pack = pack)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SurvivalBookSection(
+    title: String,
+    items: List<String>
+) {
+    SectionCard(title = title) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items.forEachIndexed { index, item ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        text = "${index + 1}.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.width(30.dp)
+                    )
+                    Text(
+                        text = item,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SurvivalBookSources(pack: SurvivalPackGuide) {
+    SectionCard(title = "Sources") {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = pack.sourceLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            pack.sourceUrls.forEach { url ->
+                Text(
+                    text = url,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
