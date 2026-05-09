@@ -135,6 +135,7 @@ class GemmaChatService(
 
                 Formatting rules:
                 - Use exactly these section headings: RISK, SITUATION, DO NOW, DO NOT, NEXT QUESTION.
+                - Use each section heading exactly once. Never repeat RISK, SITUATION, DO NOW, DO NOT, or NEXT QUESTION.
                 - Put each heading on its own line.
                 - Leave a blank line after each heading.
                 - Use numbered steps under DO NOW and DO NOT.
@@ -184,6 +185,7 @@ class GemmaChatService(
 
             Formatting guidance:
             - Use exactly these section headings: RISK, SITUATION, DO NOW, DO NOT, NEXT QUESTION.
+            - Use each section heading exactly once. Never repeat RISK, SITUATION, DO NOW, DO NOT, or NEXT QUESTION.
             - Put each heading on its own line.
             - Leave a blank line after each heading.
             - Use numbered steps under DO NOW and DO NOT.

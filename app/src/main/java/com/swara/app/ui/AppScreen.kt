@@ -152,6 +152,7 @@ private fun SwaraScreen(
     onSetResponseMode: (ResponseMode) -> Unit
 ) {
     var selectedSurvivalPack by remember { mutableStateOf<SurvivalPackGuide?>(null) }
+    var showChat by remember { mutableStateOf(false) }
 
     if (showLibrarySheet) {
         ModalBottomSheet(
@@ -178,7 +179,26 @@ private fun SwaraScreen(
     selectedSurvivalPack?.let { pack ->
         SurvivalBookScreen(
             pack = pack,
-            onBack = { selectedSurvivalPack = null }
+            onBack = { selectedSurvivalPack = null },
+            onAskSwara = {
+                onSetEmergencyCategory(pack.category)
+                selectedSurvivalPack = null
+                showChat = true
+            }
+        )
+        return
+    }
+
+    if (!showChat) {
+        GuideHomeScreen(
+            state = state,
+            onOpenKit = onShowLibrary,
+            onOpenChat = { showChat = true },
+            onOpenPack = { selectedSurvivalPack = it },
+            onAskSwara = { category ->
+                onSetEmergencyCategory(category)
+                showChat = true
+            }
         )
         return
     }
@@ -190,6 +210,7 @@ private fun SwaraScreen(
         topBar = {
             ChatTopBar(
                 state = state,
+                onShowGuide = { showChat = false },
                 onShowLibrary = onShowLibrary
             )
         },
@@ -226,6 +247,7 @@ private fun SwaraScreen(
 @Composable
 private fun ChatTopBar(
     state: MainUiState,
+    onShowGuide: () -> Unit,
     onShowLibrary: () -> Unit
 ) {
     Surface(
@@ -242,14 +264,14 @@ private fun ChatTopBar(
                 containerColor = Color.Transparent
             ),
             navigationIcon = {
-                IconButton(onClick = onShowLibrary) {
-                    Icon(Icons.Rounded.Menu, contentDescription = "Open Swara kit")
+                IconButton(onClick = onShowGuide) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back to guide")
                 }
             },
             title = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Swara",
+                        text = "Ask Swara",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -265,16 +287,223 @@ private fun ChatTopBar(
                     modifier = Modifier.padding(end = 16.dp),
                     horizontalAlignment = Alignment.End
                 ) {
-                    Text(
-                        text = "Powered by Gemma 4",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    StatusDot(state.modelState)
+                    IconButton(onClick = onShowLibrary) {
+                        Icon(Icons.Rounded.Menu, contentDescription = "Open kit and settings")
+                    }
                 }
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun GuideHomeScreen(
+    state: MainUiState,
+    onOpenKit: () -> Unit,
+    onOpenChat: () -> Unit,
+    onOpenPack: (SurvivalPackGuide) -> Unit,
+    onAskSwara: (EmergencyCategory) -> Unit
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+                )
+            ) {
+                CenterAlignedTopAppBar(
+                    modifier = Modifier.statusBarsPadding(),
+                    colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent
+                    ),
+                    navigationIcon = {
+                        IconButton(onClick = onOpenKit) {
+                            Icon(Icons.Rounded.Menu, contentDescription = "Open kit and settings")
+                        }
+                    },
+                    title = {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Swara",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Offline survival guide first",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    actions = {
+                        Column(
+                            modifier = Modifier.padding(end = 16.dp),
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            Text(
+                                text = "Gemma 4 ready",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            StatusDot(state.modelState)
+                        }
+                    }
+                )
+            }
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                ),
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(30.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.44f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Open the guide first.",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Read static emergency steps without waiting for generation. Use Ask Swara only when the situation needs adaptation.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            AssistChip(
+                                onClick = onOpenChat,
+                                label = { Text("Ask Swara") },
+                                leadingIcon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) }
+                            )
+                            AssistChip(
+                                onClick = onOpenKit,
+                                label = { Text("Kit / Settings") },
+                                leadingIcon = { Icon(Icons.Rounded.FolderOpen, contentDescription = null) }
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Text(
+                    text = "Survival Book",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            items(state.survivalPacks, key = { it.category.name }) { pack ->
+                GuidePackCard(
+                    pack = pack,
+                    onRead = { onOpenPack(pack) },
+                    onAskSwara = { onAskSwara(pack.category) }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GuidePackCard(
+    pack: SurvivalPackGuide,
+    onRead: () -> Unit,
+    onAskSwara: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    modifier = Modifier.size(44.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.Description,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = pack.category.label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = pack.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            Text(
+                text = pack.quickHelp.firstOrNull().orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AssistChip(
+                    onClick = onRead,
+                    label = { Text("Read guide") }
+                )
+                AssistChip(
+                    onClick = onAskSwara,
+                    label = { Text("Ask Swara") }
+                )
+            }
+        }
     }
 }
 
@@ -1402,7 +1631,8 @@ private fun SurvivalPackRow(
 @Composable
 private fun SurvivalBookScreen(
     pack: SurvivalPackGuide,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onAskSwara: () -> Unit
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -1476,9 +1706,14 @@ private fun SurvivalBookScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Version ${pack.version} • Updated ${pack.lastUpdated}",
+                            text = "Version ${pack.version} | Updated ${pack.lastUpdated}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
+                        )
+                        AssistChip(
+                            onClick = onAskSwara,
+                            label = { Text("Ask Swara about this") },
+                            leadingIcon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) }
                         )
                     }
                 }

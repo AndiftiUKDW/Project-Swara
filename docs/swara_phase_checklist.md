@@ -18,7 +18,7 @@ Current focus:
 | Phase 1: Swara Foundation | done | Swara shell, emergency-first framing, category entry, and build verification are in place. |
 | Phase 2: Emergency Brain | implemented_pending_device_validation | Swara response contract, mode rules, category guidance, safety boundaries, rendering, and TTS cleanup are implemented. |
 | Phase 3: Knowledge + Survival Pack | implemented_pending_device_validation | Bundled survival-pack grounding, metadata, and read-only Survival Book mode are implemented. |
-| Phase 4: Panic-Friendly UX | not_started | Base UI exists, but panic-first simplification is not done. |
+| Phase 4: Panic-Friendly UX | implemented_pending_device_validation | Guide-first home, separated chat flow, and duplicate heading cleanup are implemented. |
 | Phase 5: Lightweight Sharing | not_started | Base app patterns exist, but Swara-specific share flows are not done. |
 | Phase 6: Proof Package | not_started | No Swara-specific benchmark/proof package yet. |
 | Phase 7: Survival Node Roadmap | not_started | Roadmap only. |
@@ -165,15 +165,23 @@ Goal:
 - make the app usable under stress
 
 Status:
-- `not_started`
+- `implemented_pending_device_validation`
 
 Checklist:
-- [ ] Large emergency-first category buttons
-- [ ] Simplify first screen
-- [ ] Reduce non-essential controls
-- [ ] Improve long-answer readability
-- [ ] Tune spacing and hierarchy for high-stress reading
+- [x] Large emergency-first category buttons
+- [x] Simplify first screen
+- [x] Reduce non-essential controls
+- [x] Improve long-answer readability
+- [x] Tune spacing and hierarchy for high-stress reading
 - [ ] Validate on a real phone screen
+
+Implementation notes:
+- [x] Make Survival Book / guide the first surface after launch
+- [x] Move chat into explicit `Ask Swara` mode
+- [x] Add `Read guide` and `Ask Swara` actions per bundled pack
+- [x] Keep Kit / Settings separate from primary emergency guide flow
+- [x] Add renderer cleanup for duplicate emergency section headings
+- [x] Strengthen prompt rule so each emergency heading appears once
 
 ---
 

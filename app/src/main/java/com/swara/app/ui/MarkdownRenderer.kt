@@ -456,6 +456,7 @@ private fun normalizeMarkdownInput(raw: String): String {
         .let(::stripPromptEchoIntro)
         .let(::normalizeEmergencyResponseSpacing)
         .let(::convertSectionsToMarkdown)
+        .let(::dedupeEmergencySections)
         .let(::normalizeMarkdownLists)
         .let(::normalizeQuotesAndRules)
         .let(::stripUnmatchedInlineMarkers)
@@ -499,6 +500,28 @@ private fun convertSectionsToMarkdown(text: String): String {
             "\n\n## ${match.groupValues[1].removeSuffix(":")}\n"
         }
         .replace(Regex("""(?m)(?<!\n)(##\s)"""), "\n\n$1")
+}
+
+private fun dedupeEmergencySections(text: String): String {
+    val headingRegex = Regex("""^##\s+(RISK|SITUATION|DO NOW|DO NOT|NEXT QUESTION)\s*$""")
+    val punctuationOnlyRegex = Regex("""^[\s.:;,-]+$""")
+    val seen = mutableSetOf<String>()
+    var skipDuplicateNoise = false
+    return text.lines().mapNotNull { line ->
+        val heading = headingRegex.matchEntire(line.trim())?.groupValues?.getOrNull(1)
+        if (heading != null) {
+            skipDuplicateNoise = false
+            if (!seen.add(heading)) {
+                skipDuplicateNoise = true
+                return@mapNotNull null
+            }
+        }
+        if (skipDuplicateNoise && (line.isBlank() || punctuationOnlyRegex.matches(line))) {
+            return@mapNotNull null
+        }
+        skipDuplicateNoise = false
+        line
+    }.joinToString("\n")
 }
 
 private fun normalizeMarkdownLists(text: String): String {
