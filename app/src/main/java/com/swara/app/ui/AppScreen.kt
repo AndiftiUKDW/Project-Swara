@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -60,6 +61,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -72,6 +75,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -90,6 +94,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import com.swara.app.data.model.ChatMessage
 import com.swara.app.data.model.DocumentRecord
 import com.swara.app.data.model.DocumentStatus
@@ -105,7 +110,10 @@ import com.swara.app.data.model.VoiceState
 fun SwaraApp(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val showLibrarySheet = remember { mutableStateOf(false) }
+    val drawerState = androidx.compose.material3.rememberDrawerState(
+        initialValue = androidx.compose.material3.DrawerValue.Closed
+    )
+    val scope = rememberCoroutineScope()
     val hasAudioPermission = ContextCompat.checkSelfPermission(
         context,
         Manifest.permission.RECORD_AUDIO
@@ -121,9 +129,9 @@ fun SwaraApp(viewModel: MainViewModel) {
         onStartVoice = { viewModel.startVoiceInput(hasAudioPermission) },
         onStopSpeaking = viewModel::stopSpeaking,
         onSpeakMessage = viewModel::speakMessage,
-        onShowLibrary = { showLibrarySheet.value = true },
-        onHideLibrary = { showLibrarySheet.value = false },
-        showLibrarySheet = showLibrarySheet.value,
+        onShowLibrary = { scope.launch { drawerState.open() } },
+        onHideLibrary = { scope.launch { drawerState.close() } },
+        drawerState = drawerState,
         onToggleDocumentScope = viewModel::toggleDocumentScope,
         onSetAutoSpeak = viewModel::setAutoSpeak,
         onSetMaxChunks = viewModel::setMaxChunks,
@@ -149,7 +157,7 @@ private fun SwaraScreen(
     onSpeakMessage: (ChatMessage) -> Unit,
     onShowLibrary: () -> Unit,
     onHideLibrary: () -> Unit,
-    showLibrarySheet: Boolean,
+    drawerState: androidx.compose.material3.DrawerState,
     onToggleDocumentScope: (String) -> Unit,
     onSetAutoSpeak: (Boolean) -> Unit,
     onSetMaxChunks: (Int) -> Unit,
@@ -161,12 +169,25 @@ private fun SwaraScreen(
 ) {
     var selectedSurvivalPack by remember { mutableStateOf<SurvivalPackGuide?>(null) }
     var showChat by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    if (showLibrarySheet) {
-        ModalBottomSheet(
-            onDismissRequest = onHideLibrary,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
+    BackHandler(enabled = drawerState.isOpen) {
+        scope.launch { drawerState.close() }
+    }
+    BackHandler(enabled = drawerState.isClosed && selectedSurvivalPack != null) {
+        selectedSurvivalPack = null
+    }
+    BackHandler(enabled = drawerState.isClosed && selectedSurvivalPack == null && showChat) {
+        showChat = false
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                drawerContentColor = MaterialTheme.colorScheme.onSurface
+            ) {
             LibrarySheet(
                 state = state,
                 hasAudioPermission = hasAudioPermission,
@@ -177,79 +198,78 @@ private fun SwaraScreen(
                 onSetMaxChunks = onSetMaxChunks,
                 onDeleteDocument = onDeleteDocument,
                 onStartDistributionServer = onStartDistributionServer,
-                onStopDistributionServer = onStopDistributionServer,
-                onOpenSurvivalPack = {
-                    selectedSurvivalPack = it
-                    onHideLibrary()
+                onStopDistributionServer = onStopDistributionServer
+            )
+        }
+        }
+    ) {
+
+        val pack = selectedSurvivalPack
+        when {
+            pack != null -> {
+                SurvivalBookScreen(
+                    pack = pack,
+                    onBack = { selectedSurvivalPack = null },
+                    onAskSwara = {
+                        onSetEmergencyCategory(pack.category)
+                        selectedSurvivalPack = null
+                        showChat = true
+                    }
+                )
+            }
+            !showChat -> {
+                GuideHomeScreen(
+                    state = state,
+                    onOpenKit = onShowLibrary,
+                    onOpenChat = { showChat = true },
+                    onOpenPack = { selectedSurvivalPack = it },
+                    onAskSwara = { category ->
+                        onSetEmergencyCategory(category)
+                        showChat = true
+                    }
+                )
+            }
+            else -> {
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    containerColor = Color.Transparent,
+                    contentWindowInsets = WindowInsets.safeDrawing,
+                    topBar = {
+                        ChatTopBar(
+                            state = state,
+                            onShowGuide = { showChat = false },
+                            onShowLibrary = onShowLibrary
+                        )
+                    },
+                    bottomBar = {
+                        ComposerPanel(
+                            draft = state.draft,
+                            settings = state.settings,
+                            isBusy = state.isBusy,
+                            voiceState = state.voiceState,
+                            onDraftChange = onDraftChange,
+                            onSend = onSend,
+                            onStartVoice = onStartVoice,
+                            onStopSpeaking = onStopSpeaking,
+                            onSetEmergencyCategory = onSetEmergencyCategory,
+                            onSetResponseMode = onSetResponseMode
+                        )
+                    }
+                ) { padding ->
+                    ChatPanel(
+                        state = state,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        onPickModel = onPickModel,
+                        onPickDocuments = onPickDocuments,
+                        onSpeakMessage = onSpeakMessage,
+                        onSetEmergencyCategory = onSetEmergencyCategory,
+                        onSetResponseMode = onSetResponseMode
+                    )
                 }
-            )
-        }
-    }
-
-    selectedSurvivalPack?.let { pack ->
-        SurvivalBookScreen(
-            pack = pack,
-            onBack = { selectedSurvivalPack = null },
-            onAskSwara = {
-                onSetEmergencyCategory(pack.category)
-                selectedSurvivalPack = null
-                showChat = true
             }
-        )
-        return
-    }
-
-    if (!showChat) {
-        GuideHomeScreen(
-            state = state,
-            onOpenKit = onShowLibrary,
-            onOpenChat = { showChat = true },
-            onOpenPack = { selectedSurvivalPack = it },
-            onAskSwara = { category ->
-                onSetEmergencyCategory(category)
-                showChat = true
-            }
-        )
-        return
-    }
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets.safeDrawing,
-        topBar = {
-            ChatTopBar(
-                state = state,
-                onShowGuide = { showChat = false },
-                onShowLibrary = onShowLibrary
-            )
-        },
-        bottomBar = {
-            ComposerPanel(
-                draft = state.draft,
-                settings = state.settings,
-                isBusy = state.isBusy,
-                voiceState = state.voiceState,
-                onDraftChange = onDraftChange,
-                onSend = onSend,
-                onStartVoice = onStartVoice,
-                onStopSpeaking = onStopSpeaking,
-                onSetEmergencyCategory = onSetEmergencyCategory,
-                onSetResponseMode = onSetResponseMode
-            )
         }
-    ) { padding ->
-        ChatPanel(
-            state = state,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            onPickModel = onPickModel,
-            onPickDocuments = onPickDocuments,
-            onSpeakMessage = onSpeakMessage,
-            onSetEmergencyCategory = onSetEmergencyCategory,
-            onSetResponseMode = onSetResponseMode
-        )
     }
 }
 
@@ -1492,8 +1512,7 @@ private fun LibrarySheet(
     onSetMaxChunks: (Int) -> Unit,
     onDeleteDocument: (String) -> Unit,
     onStartDistributionServer: () -> Unit,
-    onStopDistributionServer: () -> Unit,
-    onOpenSurvivalPack: (SurvivalPackGuide) -> Unit
+    onStopDistributionServer: () -> Unit
 ) {
     var distributionQrPayload by remember { mutableStateOf<String?>(null) }
     distributionQrPayload?.let { payload ->
@@ -1521,29 +1540,6 @@ private fun LibrarySheet(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-
-        SectionCard(title = "Bundled Survival Book") {
-            Text(
-                text = "Version ${state.survivalPackMetadata.version} • Updated ${state.survivalPackMetadata.lastUpdated}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Offline Swara survival guidance for medical, fire, flood, earthquake, violence or personal safety, lost and general emergencies.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                state.survivalPacks.forEach { pack ->
-                    SurvivalPackRow(
-                        pack = pack,
-                        onOpen = { onOpenSurvivalPack(pack) }
-                    )
-                }
-            }
-        }
 
         SectionCard(title = "Model") {
             SheetActionRow(

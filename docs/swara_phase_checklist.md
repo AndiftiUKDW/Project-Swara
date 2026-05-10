@@ -221,9 +221,11 @@ Phase 5C implementation:
 - [x] Serve installed APK at `/app.apk`
 - [x] Serve survival pack TXT and JSON
 - [x] Serve imported Gemma model at `/model` when present
-- [ ] Validate receiver phone can open the local URL over hotspot
-- [ ] Validate APK download/install path on receiver
-- [ ] Validate model download behavior and transfer time
+- [x] Validate receiver phone can open the local URL over hotspot
+- [x] Validate APK download/install path on receiver
+- [x] Validate model download behavior and transfer time
+- [x] Move Kit / Settings from bottom sheet to left navigation drawer
+- [x] Remove redundant bundled survival book list from Kit / Settings drawer
 
 ---
 
