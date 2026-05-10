@@ -1,10 +1,13 @@
 package com.swara.app.ui
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Box
@@ -74,6 +77,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -124,6 +128,8 @@ fun SwaraApp(viewModel: MainViewModel) {
         onSetAutoSpeak = viewModel::setAutoSpeak,
         onSetMaxChunks = viewModel::setMaxChunks,
         onDeleteDocument = viewModel::deleteDocument,
+        onStartDistributionServer = viewModel::startDistributionServer,
+        onStopDistributionServer = viewModel::stopDistributionServer,
         onSetEmergencyCategory = viewModel::setEmergencyCategory,
         onSetResponseMode = viewModel::setResponseMode
     )
@@ -148,6 +154,8 @@ private fun SwaraScreen(
     onSetAutoSpeak: (Boolean) -> Unit,
     onSetMaxChunks: (Int) -> Unit,
     onDeleteDocument: (String) -> Unit,
+    onStartDistributionServer: () -> Unit,
+    onStopDistributionServer: () -> Unit,
     onSetEmergencyCategory: (EmergencyCategory) -> Unit,
     onSetResponseMode: (ResponseMode) -> Unit
 ) {
@@ -168,6 +176,8 @@ private fun SwaraScreen(
                 onSetAutoSpeak = onSetAutoSpeak,
                 onSetMaxChunks = onSetMaxChunks,
                 onDeleteDocument = onDeleteDocument,
+                onStartDistributionServer = onStartDistributionServer,
+                onStopDistributionServer = onStopDistributionServer,
                 onOpenSurvivalPack = {
                     selectedSurvivalPack = it
                     onHideLibrary()
@@ -588,6 +598,9 @@ private fun ChatPanel(
                     MessageBubble(
                         message = message,
                         evidence = state.evidenceByMessage[message.id].orEmpty(),
+                        conversation = messages,
+                        category = state.settings.selectedCategory,
+                        responseMode = state.settings.responseMode,
                         onSpeakMessage = onSpeakMessage
                     )
                 }
@@ -688,13 +701,19 @@ private fun InlineBanner(text: String) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MessageBubble(
     message: ChatMessage,
     evidence: List<RetrievalResult>,
+    conversation: List<ChatMessage>,
+    category: EmergencyCategory,
+    responseMode: ResponseMode,
     onSpeakMessage: (ChatMessage) -> Unit
 ) {
     val isAssistant = message.role == Role.ASSISTANT
+    val context = LocalContext.current
+    var qrPayload by remember { mutableStateOf<String?>(null) }
     val bubbleShape = if (isAssistant) {
         RoundedCornerShape(topStart = 12.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 24.dp)
     } else {
@@ -749,6 +768,13 @@ private fun MessageBubble(
                         evidence = evidence
                     )
                 }
+                if (qrPayload != null) {
+                    QrPayloadSheet(
+                        title = "Share Swara answer",
+                        payload = qrPayload.orEmpty(),
+                        onDismiss = { qrPayload = null }
+                    )
+                }
                 if (isAssistant) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -764,15 +790,46 @@ private fun MessageBubble(
                         } else {
                             Spacer(modifier = Modifier.width(1.dp))
                         }
-                        IconButton(
-                            onClick = { onSpeakMessage(message) },
-                            modifier = Modifier.size(32.dp)
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.GraphicEq,
-                                contentDescription = "Speak reply",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            if (!message.isStreaming && message.text.isNotBlank()) {
+                                AssistChip(
+                                    onClick = {
+                                        shareText(
+                                            context = context,
+                                            text = buildShareTextForMessage(
+                                                message = message,
+                                                category = category,
+                                                mode = responseMode
+                                            )
+                                        )
+                                    },
+                                    label = { Text("Share") }
+                                )
+                                AssistChip(
+                                    onClick = {
+                                        qrPayload = buildQrPayloadForMessage(
+                                            message = message,
+                                            conversation = conversation,
+                                            category = category,
+                                            mode = responseMode
+                                        )
+                                    },
+                                    label = { Text("QR") }
+                                )
+                            }
+                            IconButton(
+                                onClick = { onSpeakMessage(message) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.GraphicEq,
+                                    contentDescription = "Speak reply",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
@@ -1423,7 +1480,7 @@ private fun ResponseModeSelector(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun LibrarySheet(
     state: MainUiState,
@@ -1434,8 +1491,18 @@ private fun LibrarySheet(
     onSetAutoSpeak: (Boolean) -> Unit,
     onSetMaxChunks: (Int) -> Unit,
     onDeleteDocument: (String) -> Unit,
+    onStartDistributionServer: () -> Unit,
+    onStopDistributionServer: () -> Unit,
     onOpenSurvivalPack: (SurvivalPackGuide) -> Unit
 ) {
+    var distributionQrPayload by remember { mutableStateOf<String?>(null) }
+    distributionQrPayload?.let { payload ->
+        QrPayloadSheet(
+            title = "Swara local server",
+            payload = payload,
+            onDismiss = { distributionQrPayload = null }
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1450,7 +1517,7 @@ private fun LibrarySheet(
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            text = "Manage model, survival packs, and offline emergency guidance behavior.",
+            text = "Manage model, survival packs, and local sharing.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1463,7 +1530,7 @@ private fun LibrarySheet(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = state.survivalPackMetadata.scope,
+                text = "Offline Swara survival guidance for medical, fire, flood, earthquake, violence or personal safety, lost and general emergencies.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1495,6 +1562,49 @@ private fun LibrarySheet(
                 },
                 actionLabel = if (state.modelState is ModelState.Ready) "Replace" else "Import",
                 onClick = onPickModel
+            )
+        }
+
+        SectionCard(title = "Local Distribution") {
+            val serverState = state.distributionServerState
+            Text(
+                text = "Share APK, survival pack, and imported model over the same hotspot or Wi-Fi.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = serverState.url ?: "Turn on hotspot or connect both phones to the same Wi-Fi, then start server.",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (serverState.url == null) FontWeight.Normal else FontWeight.SemiBold,
+                color = if (serverState.url == null) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AssistChip(
+                    onClick = if (serverState.running) onStopDistributionServer else onStartDistributionServer,
+                    label = { Text(if (serverState.running) "Stop server" else "Start server") }
+                )
+                AssistChip(
+                    enabled = serverState.url != null,
+                    onClick = {
+                        serverState.url?.let { distributionQrPayload = it }
+                    },
+                    label = { Text("Show URL QR") }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = serverState.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -1627,13 +1737,23 @@ private fun SurvivalPackRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun SurvivalBookScreen(
     pack: SurvivalPackGuide,
     onBack: () -> Unit,
     onAskSwara: () -> Unit
 ) {
+    val context = LocalContext.current
+    var qrPayload by remember { mutableStateOf<String?>(null) }
+    if (qrPayload != null) {
+        QrPayloadSheet(
+            title = "Share ${pack.category.label} guide",
+            payload = qrPayload.orEmpty(),
+            onDismiss = { qrPayload = null }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -1715,6 +1835,24 @@ private fun SurvivalBookScreen(
                             label = { Text("Ask Swara about this") },
                             leadingIcon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) }
                         )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            AssistChip(
+                                onClick = {
+                                    shareText(
+                                        context = context,
+                                        text = buildShareTextForPack(pack)
+                                    )
+                                },
+                                label = { Text("Share text") }
+                            )
+                            AssistChip(
+                                onClick = { qrPayload = buildQrPayloadForPack(pack) },
+                                label = { Text("Show QR") }
+                            )
+                        }
                     }
                 }
             }
@@ -1794,6 +1932,91 @@ private fun SurvivalBookSources(pack: SurvivalPackGuide) {
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QrPayloadSheet(
+    title: String,
+    payload: String,
+    onDismiss: () -> Unit
+) {
+    val qrBitmap = remember(payload) {
+        runCatching { generateQrBitmap(payload) }
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "QR-only TXT. Short ASCII payload for easier scanning.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            qrBitmap.getOrNull()?.let { bitmap ->
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White,
+                    tonalElevation = 0.dp
+                ) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Swara sharing QR",
+                        modifier = Modifier
+                            .size(280.dp)
+                            .padding(12.dp)
+                    )
+                }
+            } ?: Text(
+                text = "QR payload is too large. Use text share instead.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+                )
+            ) {
+                Text(
+                    text = payload,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(14.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+private fun shareText(
+    context: Context,
+    text: String
+) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(Intent.createChooser(intent, "Share with"))
 }
 
 @Composable

@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.google.material)
     implementation(libs.google.gson)
     implementation(libs.commonmark)
+    implementation(libs.zxing.core)
     implementation(libs.tom.roush.pdfbox.android)
     implementation(libs.google.litertlm.android)
     implementation(libs.kotlinx.coroutines.android)

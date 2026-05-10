@@ -17,6 +17,7 @@ import com.swara.app.data.model.Role
 import com.swara.app.data.model.SurvivalPackGuide
 import com.swara.app.data.repo.SurvivalPackMetadata
 import com.swara.app.data.model.VoiceState
+import com.swara.app.services.DistributionServerState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,6 +40,7 @@ data class MainUiState(
     val settings: AppSettings = AppSettings(),
     val survivalPacks: List<SurvivalPackGuide> = emptyList(),
     val survivalPackMetadata: SurvivalPackMetadata = SurvivalPackMetadata(),
+    val distributionServerState: DistributionServerState = DistributionServerState(),
     val isBusy: Boolean = false,
     val statusMessage: String? = null
 )
@@ -51,6 +53,7 @@ class MainViewModel(
     private val _settings = MutableStateFlow(AppSettings())
     private val _busy = MutableStateFlow(false)
     private val _status = MutableStateFlow<String?>(null)
+    private val _distributionServerState = MutableStateFlow(DistributionServerState())
     private val _evidenceByMessage = MutableStateFlow<Map<String, List<RetrievalResult>>>(emptyMap())
     private val _events = MutableSharedFlow<UiEvent>()
 
@@ -82,6 +85,8 @@ class MainViewModel(
         inputs.copy(busy = busy)
     }.combine(_status) { inputs, status ->
         inputs.copy(status = status)
+    }.combine(_distributionServerState) { inputs, distributionServerState ->
+        inputs.copy(distributionServerState = distributionServerState)
     }.map { inputs ->
         MainUiState(
             messages = inputs.messages,
@@ -93,6 +98,7 @@ class MainViewModel(
             settings = inputs.settings,
             survivalPacks = container.survivalPackRepository.allPacks(),
             survivalPackMetadata = container.survivalPackRepository.metadata(),
+            distributionServerState = inputs.distributionServerState,
             isBusy = inputs.busy,
             statusMessage = inputs.status
         )
@@ -197,6 +203,14 @@ class MainViewModel(
         }
     }
 
+    fun startDistributionServer() {
+        _distributionServerState.value = container.distributionServer.start()
+    }
+
+    fun stopDistributionServer() {
+        _distributionServerState.value = container.distributionServer.stop()
+    }
+
     private fun askQuestion(question: String) {
         val activeSettings = _settings.value
         val effectiveQuestion = buildOperationalQuestion(question, activeSettings)
@@ -298,6 +312,7 @@ class MainViewModel(
         val modelState: ModelState,
         val voiceState: VoiceState = VoiceState.Idle,
         val settings: AppSettings = AppSettings(),
+        val distributionServerState: DistributionServerState = DistributionServerState(),
         val busy: Boolean = false,
         val status: String? = null
     )

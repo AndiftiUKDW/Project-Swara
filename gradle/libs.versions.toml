@@ -12,6 +12,7 @@ documentfile = "1.0.1"
 material = "1.12.0"
 gson = "2.13.2"
 commonmark = "0.24.0"
+zxing = "3.5.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +34,7 @@ google-litertlm-android = { group = "com.google.ai.edge.litertlm", name = "liter
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 google-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 commonmark = { group = "org.commonmark", name = "commonmark", version.ref = "commonmark" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -19,7 +19,7 @@ Current focus:
 | Phase 2: Emergency Brain | implemented_pending_device_validation | Swara response contract, mode rules, category guidance, safety boundaries, rendering, and TTS cleanup are implemented. |
 | Phase 3: Knowledge + Survival Pack | implemented_pending_device_validation | Bundled survival-pack grounding, metadata, and read-only Survival Book mode are implemented. |
 | Phase 4: Panic-Friendly UX | implemented_pending_device_validation | Guide-first home, separated chat flow, and duplicate heading cleanup are implemented. |
-| Phase 5: Lightweight Sharing | not_started | Base app patterns exist, but Swara-specific share flows are not done. |
+| Phase 5: Lightweight Sharing | phase_5bc_implemented_pending_device_validation | QR/text sharing plus prototype local hotspot/LAN distribution server are implemented. |
 | Phase 6: Proof Package | not_started | No Swara-specific benchmark/proof package yet. |
 | Phase 7: Survival Node Roadmap | not_started | Roadmap only. |
 
@@ -191,14 +191,39 @@ Goal:
 - let one device help nearby users offline
 
 Status:
-- `not_started`
+- `phase_5a_implemented_pending_device_validation`
 
 Checklist:
-- [ ] Share response as text
-- [ ] Share response via QR
-- [ ] Share survival pack
-- [ ] Document app shell sharing path
-- [ ] Leave full model sharing as optional experiment
+- [x] Share response as text
+- [x] Share response via QR
+- [x] Share survival pack
+- [x] Document app shell sharing path
+- [x] Leave full model sharing as optional experiment
+
+Phase 5A implementation:
+- [x] Add compact `SWARA/CHAT/1` QR payloads
+- [x] Add compact `SWARA/PACK/1` QR payloads
+- [x] Keep QR payloads uppercase ASCII and line-oriented
+- [x] Add native Android text share for assistant answers
+- [x] Add native Android text share for Survival Book packs
+- [x] Add QR display sheet for assistant answers and guide packs
+- [ ] Validate QR scanning on another phone
+
+Phase 5B implementation:
+- [x] Remove `A1` / `A2` labels from chat QR output to reduce payload size
+- [x] Shorten Swara Kit survival-book description
+- [x] Keep guide/answer text sharing available through Android share sheet
+
+Phase 5C implementation:
+- [x] Add prototype local HTTP distribution server
+- [x] Add manual hotspot / same-Wi-Fi instructions
+- [x] Add local URL QR
+- [x] Serve installed APK at `/app.apk`
+- [x] Serve survival pack TXT and JSON
+- [x] Serve imported Gemma model at `/model` when present
+- [ ] Validate receiver phone can open the local URL over hotspot
+- [ ] Validate APK download/install path on receiver
+- [ ] Validate model download behavior and transfer time
 
 ---
 

@@ -37,6 +37,10 @@ class SurvivalPackRepository(
         )
     }
 
+    fun rawCatalogJson(): String {
+        return appContext.assets.open(ASSET_NAME).bufferedReader().use { it.readText() }
+    }
+
     private fun SurvivalPackGuide.withCatalogMetadata(): SurvivalPackGuide {
         return copy(
             version = catalog.version,
