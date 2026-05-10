@@ -235,7 +235,7 @@ Goal:
 - prepare Swara-specific proof for demo and judging
 
 Status:
-- `not_started`
+- `documentation_ready`
 
 Checklist:
 - [ ] Airplane mode proof
@@ -246,6 +246,7 @@ Checklist:
 - [ ] Expected output examples
 - [ ] Demo script
 - [ ] Technical writeup
+- [x] Phase 6 proof package guide written in `docs/phase6_proof_package_guide.md`
 
 ---
 
