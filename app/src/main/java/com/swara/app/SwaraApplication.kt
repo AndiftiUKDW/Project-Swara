@@ -37,7 +37,8 @@ class SwaraApplication : Application() {
                 survivalPackRepository = survivalPackRepository
             ),
             webHostServer = WebHostServer(
-                survivalPackRepository = survivalPackRepository
+                survivalPackRepository = survivalPackRepository,
+                chatService = chatService
             ),
             documentRepository = repository,
             chatSessionRepository = chatSessionRepository,

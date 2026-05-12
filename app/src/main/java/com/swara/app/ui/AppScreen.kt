@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Search
@@ -56,6 +57,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -686,6 +688,7 @@ private fun MessageBubble(
     onShare: () -> Unit,
     onSpeak: () -> Unit
 ) {
+    val clipboard = LocalClipboardManager.current
     val isUser = message.role == Role.USER
     Row(
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
@@ -703,15 +706,22 @@ private fun MessageBubble(
                 Text(formatHumanMessage(message.text, isUser))
                 if (!isUser && message.text.isNotBlank()) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { clipboard.setText(AnnotatedString(formatHumanMessage(message.text, false))) }) {
+                            Icon(Icons.Default.ContentCopy, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Copy")
+                        }
                         OutlinedButton(onClick = onShare) {
                             Icon(Icons.Default.Share, null, Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Share Guide")
                         }
-                        OutlinedButton(onClick = onSpeak) {
+                        OutlinedButton(
+                            onClick = onSpeak,
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.size(48.dp)
+                        ) {
                             Icon(Icons.Default.VolumeUp, null, Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Speak")
                         }
                     }
                 }
@@ -731,6 +741,9 @@ private fun Composer(
     onStartVoiceInput: () -> Unit,
     onStopSpeaking: () -> Unit
 ) {
+    val voiceActive = voiceState is VoiceState.Listening ||
+        voiceState is VoiceState.Transcribing ||
+        voiceState is VoiceState.Speaking
     Surface(
         color = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp,
@@ -745,14 +758,17 @@ private fun Composer(
         ) {
             Surface(
                 onClick = {
-                    if (voiceState is VoiceState.Speaking) onStopSpeaking() else onStartVoiceInput()
+                    if (voiceActive) onStopSpeaking() else onStartVoiceInput()
                 },
-                color = MaterialTheme.colorScheme.secondaryContainer,
+                color = if (voiceActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
                 shape = RoundedCornerShape(22.dp),
                 modifier = Modifier.size(58.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(if (voiceState is VoiceState.Speaking) Icons.Default.Stop else Icons.Default.VolumeUp, null)
+                    Icon(
+                        if (voiceActive) Icons.Default.Stop else Icons.Default.Mic,
+                        contentDescription = if (voiceActive) "Stop voice input" else "Start voice input"
+                    )
                 }
             }
             OutlinedTextField(
@@ -862,8 +878,14 @@ private fun ChatSettingsPanel(
             Text("Answer mode", fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ResponseMode.entries.forEach { mode ->
-                    OutlinedButton(onClick = { onSetResponseMode(mode) }) {
-                        Text(mode.label)
+                    if (state.settings.responseMode == mode) {
+                        Button(onClick = { onSetResponseMode(mode) }) {
+                            Text(mode.label)
+                        }
+                    } else {
+                        OutlinedButton(onClick = { onSetResponseMode(mode) }) {
+                            Text(mode.label)
+                        }
                     }
                 }
             }
@@ -1370,9 +1392,13 @@ private fun formatHumanMessage(text: String, isUser: Boolean): String {
     val raw = text
         .replace(Regex("\\s+"), " ")
         .replace(Regex("(?i)Avoid\\s*:\\s*(\\d+\\.\\s*)?Avoid\\s*:"), "Avoid:")
+        .replace(Regex("(?i)Avoid\\s*:\\s*(\\d+\\.\\s*)"), "Avoid:\n$1")
         .replace(Regex("(?i)Do this now\\s*:\\s*(\\d+\\.\\s*)?Do this now\\s*:"), "Do this now:")
+        .replace(Regex("(?i)Do this now\\s*:\\s*(\\d+\\.\\s*)"), "Do this now:\n$1")
         .replace(Regex("(?i)(^|\\s)(\\d+\\.\\s*)Avoid\\s*:\\s*"), " $2")
+        .replace(Regex("(?i)(^|\\s)(\\d+\\.\\s*)Avoid\\s*-\\s*"), " $2")
         .replace(Regex("(?i)(^|\\s)(\\d+\\.\\s*)Do this now\\s*:\\s*"), " $2")
+        .replace(Regex("(?i)(^|\\s)(\\d+\\.\\s*)Do this now\\s*-\\s*"), " $2")
         .replace(Regex("(?i)\\bDo this now\\s*:?\\s*"), "\nDo this now:\n")
         .replace(Regex("(?i)\\bAvoid\\s*:?\\s*"), "\nAvoid:\n")
         .replace(Regex("(?<=[a-z])(?=Can you|Are you|Is the|Do you)", RegexOption.IGNORE_CASE), "\n\n")
@@ -1384,6 +1410,8 @@ private fun formatHumanMessage(text: String, isUser: Boolean): String {
         .replace(Regex("(?<!\\n)(\\d+\\.\\s*)"), "\n$1")
         .replace(Regex("\\n\\s+"), "\n")
         .replace(Regex("\\n{3,}"), "\n\n")
+        .replace(Regex("(?i)Avoid:\\n(\\d+)\\.\\nAvoid:\\n"), "Avoid:\n$1. ")
+        .replace(Regex("(?i)Do this now:\\n(\\d+)\\.\\nDo this now:\\n"), "Do this now:\n$1. ")
         .trim()
     val cleaned = mutableListOf<String>()
     var lastHeading = ""

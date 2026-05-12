@@ -142,6 +142,9 @@ class GemmaChatService(
                 - Ask at most one critical follow-up question.
                 - Keep numbered steps on separate lines.
                 - Never write duplicated headings like "Avoid: Avoid:".
+                - Never write "Avoid:" inside an avoid-list item.
+                - Bad: "1. Avoid: remove the object"
+                - Good: "1. Do not remove the object"
                 - Output plain text only. Do not wrap the answer in code fences.
                 - Never emit raw source headers like "[Source: ...]".
                 - Never leave unmatched "*" or "_" markers in the answer.
@@ -193,6 +196,9 @@ class GemmaChatService(
             - Ask at most one critical follow-up question.
             - Keep numbered steps on separate lines.
             - Never write duplicated headings like "Avoid: Avoid:".
+            - Never write "Avoid:" inside an avoid-list item.
+            - Bad: "1. Avoid: remove the object"
+            - Good: "1. Do not remove the object"
             - Output plain text only. Do not wrap the answer in code fences.
             - Never output raw source headers like "[Source: ...]".
             - Keep survival-pack references natural, for example "(flood_pack.md)" or "(page 2)".

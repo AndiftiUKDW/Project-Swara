@@ -300,7 +300,12 @@ class MainViewModel(
         val sessionBefore = _activeSession.value
         val previousMessages = _messages.value
         val summary = buildSessionSummary(previousMessages)
-        val effectiveQuestion = buildOperationalQuestion(question, activeSettings, summary)
+        val effectiveQuestion = buildOperationalQuestion(
+            question = question,
+            settings = activeSettings,
+            summary = summary,
+            isFollowUp = previousMessages.any { it.role == Role.USER }
+        )
         val userMessage = ChatMessage(
             id = UUID.randomUUID().toString(),
             role = Role.USER,
@@ -440,7 +445,8 @@ class MainViewModel(
     private fun buildOperationalQuestion(
         question: String,
         settings: AppSettings,
-        summary: String
+        summary: String,
+        isFollowUp: Boolean
     ): String {
         val modeInstruction = when (settings.responseMode) {
             ResponseMode.QUICK_HELP -> "Quick Help: short, immediate survival actions."
@@ -455,6 +461,9 @@ class MainViewModel(
 
             Response mode:
             $modeInstruction
+
+            Conversation behavior:
+            ${if (isFollowUp) "This is a follow-up in the same emergency. Acknowledge the user's update and continue from the previous advice. Do not restart like this is the first message." else "This is the first message in this emergency. Start with immediate guidance."}
 
             User situation:
             ${question.trim()}
