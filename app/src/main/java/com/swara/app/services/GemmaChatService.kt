@@ -130,17 +130,18 @@ class GemmaChatService(
                 Bundled survival pack:
                 $survivalPackBlock
 
-                Required response contract:
+                Response goal:
                 $responseContract
 
                 Formatting rules:
-                - Use exactly these section headings: RISK, SITUATION, DO NOW, DO NOT, NEXT QUESTION.
-                - Use each section heading exactly once. Never repeat RISK, SITUATION, DO NOW, DO NOT, or NEXT QUESTION.
-                - Put each heading on its own line.
-                - Leave a blank line after each heading.
-                - Use numbered steps under DO NOW and DO NOT.
-                - Put each numbered step on its own line.
-                - Ask exactly one critical question under NEXT QUESTION.
+                - Sound like a calm human emergency guide, not a form.
+                - Start with one short sentence about urgency or risk.
+                - Prefer short paragraphs and numbered action lines.
+                - If you use headings, use each heading once only.
+                - Good heading examples: "Do this now:" and "Avoid:".
+                - Ask at most one critical follow-up question.
+                - Keep numbered steps on separate lines.
+                - Never write duplicated headings like "Avoid: Avoid:".
                 - Output plain text only. Do not wrap the answer in code fences.
                 - Never emit raw source headers like "[Source: ...]".
                 - Never leave unmatched "*" or "_" markers in the answer.
@@ -180,17 +181,18 @@ class GemmaChatService(
             Bundled survival pack:
             $survivalPackBlock
 
-            Required response contract:
+            Response goal:
             $responseContract
 
             Formatting guidance:
-            - Use exactly these section headings: RISK, SITUATION, DO NOW, DO NOT, NEXT QUESTION.
-            - Use each section heading exactly once. Never repeat RISK, SITUATION, DO NOW, DO NOT, or NEXT QUESTION.
-            - Put each heading on its own line.
-            - Leave a blank line after each heading.
-            - Use numbered steps under DO NOW and DO NOT.
-            - Put each numbered step on its own line.
-            - Ask exactly one critical question under NEXT QUESTION.
+            - Sound like a calm human emergency guide, not a form.
+            - Start with one short sentence about urgency or risk.
+            - Prefer short paragraphs and numbered action lines.
+            - If you use headings, use each heading once only.
+            - Good heading examples: "Do this now:" and "Avoid:".
+            - Ask at most one critical follow-up question.
+            - Keep numbered steps on separate lines.
+            - Never write duplicated headings like "Avoid: Avoid:".
             - Output plain text only. Do not wrap the answer in code fences.
             - Never output raw source headers like "[Source: ...]".
             - Keep survival-pack references natural, for example "(flood_pack.md)" or "(page 2)".
@@ -239,36 +241,27 @@ class GemmaChatService(
             ResponseMode.QUICK_HELP -> """
                 Mode: Quick Help.
                 Keep the whole answer short.
-                Use 3 or fewer DO NOW steps and 2 or fewer DO NOT steps.
+                Use 3 or fewer action steps and 2 or fewer avoid/warning steps.
                 Each step should be one short sentence.
             """.trimIndent()
             ResponseMode.DETAILED_STEPS -> """
                 Mode: Detailed Steps.
                 Provide more complete guidance, but keep it practical.
-                Use 4 to 7 DO NOW steps and 2 to 4 DO NOT steps.
+                Use 4 to 7 action steps and 2 to 4 avoid/warning steps.
                 Add brief condition checks when they change the action.
             """.trimIndent()
         }
         return """
             $modeRule
 
-            RISK
-            Low / Medium / High / Unknown. Choose one and add a short reason.
+            Human response structure:
+            First sentence: direct urgency/risk statement, for example "This sounds urgent."
 
-            SITUATION
-            Summarize what the user is facing in one or two sentences.
-
-            DO NOW
-            1. Immediate survival action.
-            2. Immediate survival action.
-            3. Immediate survival action.
-
-            DO NOT
-            1. Unsafe action to avoid.
-            2. Unsafe action to avoid.
-
-            NEXT QUESTION
-            Ask exactly one critical question that changes the next instruction.
+            Include:
+            - A short risk/urgency sentence.
+            - Immediate survival actions.
+            - Unsafe actions to avoid.
+            - One critical question only if it changes the next instruction.
         """.trimIndent()
     }
 

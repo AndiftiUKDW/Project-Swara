@@ -122,3 +122,12 @@ data class AppSettings(
     val selectedCategory: EmergencyCategory = EmergencyCategory.OTHER,
     val responseMode: ResponseMode = ResponseMode.QUICK_HELP
 )
+
+data class ChatSession(
+    val id: String,
+    val title: String,
+    val selectedCategory: EmergencyCategory = EmergencyCategory.OTHER,
+    val summary: String = "",
+    val createdAt: Long,
+    val updatedAt: Long
+)

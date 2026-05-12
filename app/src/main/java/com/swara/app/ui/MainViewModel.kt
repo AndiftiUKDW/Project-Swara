@@ -6,28 +6,31 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.swara.app.AppContainer
 import com.swara.app.data.model.AppSettings
-import com.swara.app.data.model.CitationRef
 import com.swara.app.data.model.ChatMessage
+import com.swara.app.data.model.ChatSession
+import com.swara.app.data.model.CitationRef
 import com.swara.app.data.model.DocumentRecord
 import com.swara.app.data.model.EmergencyCategory
+import com.swara.app.data.model.GuideCatalogItem
 import com.swara.app.data.model.ModelState
-import com.swara.app.data.model.RetrievalResult
 import com.swara.app.data.model.ResponseMode
+import com.swara.app.data.model.RetrievalResult
 import com.swara.app.data.model.Role
 import com.swara.app.data.model.SurvivalPackGuide
-import com.swara.app.data.repo.SurvivalPackMetadata
 import com.swara.app.data.model.VoiceState
+import com.swara.app.data.repo.SurvivalPackMetadata
 import com.swara.app.services.DistributionServerState
+import com.swara.app.services.WebHostServerState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Locale
 import java.util.UUID
 
 data class MainUiState(
@@ -40,7 +43,14 @@ data class MainUiState(
     val settings: AppSettings = AppSettings(),
     val survivalPacks: List<SurvivalPackGuide> = emptyList(),
     val survivalPackMetadata: SurvivalPackMetadata = SurvivalPackMetadata(),
+    val marketplaceItems: List<GuideCatalogItem> = emptyList(),
+    val installedGuideModuleIds: Set<String> = emptySet(),
+    val sessions: List<ChatSession> = emptyList(),
+    val activeSessionId: String = "",
+    val activeSessionSummary: String = "",
+    val lockedGuideCategory: EmergencyCategory? = null,
     val distributionServerState: DistributionServerState = DistributionServerState(),
+    val webHostServerState: WebHostServerState = WebHostServerState(),
     val isBusy: Boolean = false,
     val statusMessage: String? = null
 )
@@ -48,14 +58,28 @@ data class MainUiState(
 class MainViewModel(
     private val container: AppContainer
 ) : ViewModel() {
-    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    private val initialSession = createSession()
+    private val _activeSession = MutableStateFlow(
+        container.chatSessionRepository.sessions.value.firstOrNull() ?: initialSession
+    )
+    private val _messages = MutableStateFlow(
+        sanitizeMessages(container.chatSessionRepository.messagesFor(_activeSession.value.id))
+    )
     private val _draft = MutableStateFlow("")
-    private val _settings = MutableStateFlow(AppSettings())
+    private val _settings = MutableStateFlow(
+        AppSettings(selectedCategory = _activeSession.value.selectedCategory)
+    )
+    private val _lockedGuideCategory = MutableStateFlow<EmergencyCategory?>(null)
     private val _busy = MutableStateFlow(false)
     private val _status = MutableStateFlow<String?>(null)
     private val _distributionServerState = MutableStateFlow(DistributionServerState())
+    private val _webHostServerState = MutableStateFlow(WebHostServerState())
     private val _evidenceByMessage = MutableStateFlow<Map<String, List<RetrievalResult>>>(emptyMap())
     private val _events = MutableSharedFlow<UiEvent>()
+
+    init {
+        container.chatSessionRepository.upsertSession(_activeSession.value)
+    }
 
     val events = _events.asSharedFlow()
 
@@ -87,6 +111,16 @@ class MainViewModel(
         inputs.copy(status = status)
     }.combine(_distributionServerState) { inputs, distributionServerState ->
         inputs.copy(distributionServerState = distributionServerState)
+    }.combine(_webHostServerState) { inputs, webHostServerState ->
+        inputs.copy(webHostServerState = webHostServerState)
+    }.combine(container.chatSessionRepository.sessions) { inputs, sessions ->
+        inputs.copy(sessions = sessions)
+    }.combine(_activeSession) { inputs, session ->
+        inputs.copy(activeSession = session)
+    }.combine(_lockedGuideCategory) { inputs, lockedGuideCategory ->
+        inputs.copy(lockedGuideCategory = lockedGuideCategory)
+    }.combine(container.survivalPackRepository.installedModules) { inputs, _ ->
+        inputs
     }.map { inputs ->
         MainUiState(
             messages = inputs.messages,
@@ -98,7 +132,14 @@ class MainViewModel(
             settings = inputs.settings,
             survivalPacks = container.survivalPackRepository.allPacks(),
             survivalPackMetadata = container.survivalPackRepository.metadata(),
+            marketplaceItems = container.survivalPackRepository.marketplaceCatalog(),
+            installedGuideModuleIds = container.survivalPackRepository.installedModules.value.map { it.id }.toSet(),
+            sessions = inputs.sessions,
+            activeSessionId = inputs.activeSession.id,
+            activeSessionSummary = inputs.activeSession.summary,
+            lockedGuideCategory = inputs.lockedGuideCategory,
             distributionServerState = inputs.distributionServerState,
+            webHostServerState = inputs.webHostServerState,
             isBusy = inputs.busy,
             statusMessage = inputs.status
         )
@@ -116,6 +157,10 @@ class MainViewModel(
         viewModelScope.launch { _events.emit(UiEvent.PickDocuments) }
     }
 
+    fun requestModelDownload() {
+        _status.value = "Model download source is not configured yet. Use Import manually or local sharing."
+    }
+
     fun importModel(uri: Uri) {
         viewModelScope.launch {
             _status.value = "Importing offline Gemma model..."
@@ -127,9 +172,42 @@ class MainViewModel(
 
     fun importDocuments(uris: List<Uri>) {
         viewModelScope.launch {
-            _status.value = "Indexing survival packs..."
+            _status.value = "Indexing guide files..."
             container.documentRepository.importDocuments(uris)
             _status.value = null
+        }
+    }
+
+    fun installMarketplaceGuide(itemId: String) {
+        val result = container.survivalPackRepository.installMarketplaceGuide(itemId)
+        _status.value = result.exceptionOrNull()?.message
+    }
+
+    fun newChat() {
+        persistActiveSession()
+        val session = createSession()
+        _activeSession.value = session
+        _messages.value = emptyList()
+        _evidenceByMessage.value = emptyMap()
+        _lockedGuideCategory.value = null
+        _settings.value = _settings.value.copy(selectedCategory = EmergencyCategory.OTHER)
+        container.chatSessionRepository.upsertSession(session)
+    }
+
+    fun selectSession(sessionId: String) {
+        persistActiveSession()
+        val session = container.chatSessionRepository.sessions.value.firstOrNull { it.id == sessionId } ?: return
+        _activeSession.value = session
+        _messages.value = sanitizeMessages(container.chatSessionRepository.messagesFor(session.id))
+        _evidenceByMessage.value = emptyMap()
+        _lockedGuideCategory.value = null
+        _settings.value = _settings.value.copy(selectedCategory = session.selectedCategory)
+    }
+
+    fun deleteSession(sessionId: String) {
+        container.chatSessionRepository.deleteSession(sessionId)
+        if (_activeSession.value.id == sessionId) {
+            newChat()
         }
     }
 
@@ -138,6 +216,12 @@ class MainViewModel(
         if (question.isEmpty() || _busy.value) return
         _draft.value = ""
         askQuestion(question)
+    }
+
+    fun askAboutGuide(guide: SurvivalPackGuide) {
+        _lockedGuideCategory.value = guide.category
+        _settings.value = _settings.value.copy(selectedCategory = guide.category)
+        _status.value = null
     }
 
     fun startVoiceInput(hasPermission: Boolean) {
@@ -168,16 +252,6 @@ class MainViewModel(
 
     fun speakMessage(message: ChatMessage) {
         container.voiceController.speak(message.text)
-    }
-
-    fun toggleDocumentScope(documentId: String) {
-        _settings.value = _settings.value.run {
-            val updated = documentScope.toMutableSet()
-            if (!updated.add(documentId)) {
-                updated.remove(documentId)
-            }
-            copy(documentScope = updated)
-        }
     }
 
     fun setAutoSpeak(enabled: Boolean) {
@@ -211,16 +285,29 @@ class MainViewModel(
         _distributionServerState.value = container.distributionServer.stop()
     }
 
+    fun startWebHostServer() {
+        _webHostServerState.value = container.webHostServer.start()
+    }
+
+    fun stopWebHostServer() {
+        _webHostServerState.value = container.webHostServer.stop()
+    }
+
     private fun askQuestion(question: String) {
+        val activeCategory = _lockedGuideCategory.value ?: inferCategory(question)
+        _settings.value = _settings.value.copy(selectedCategory = activeCategory)
         val activeSettings = _settings.value
-        val effectiveQuestion = buildOperationalQuestion(question, activeSettings)
+        val sessionBefore = _activeSession.value
         val previousMessages = _messages.value
+        val summary = buildSessionSummary(previousMessages)
+        val effectiveQuestion = buildOperationalQuestion(question, activeSettings, summary)
         val userMessage = ChatMessage(
             id = UUID.randomUUID().toString(),
             role = Role.USER,
             text = question
         )
-        _messages.value = _messages.value + userMessage
+        _messages.value = previousMessages + userMessage
+        persistActiveSession()
         viewModelScope.launch {
             _busy.value = true
             val retrieval = container.documentRepository.search(
@@ -228,7 +315,7 @@ class MainViewModel(
                 documentScope = activeSettings.documentScope,
                 limit = activeSettings.maxContextChunks
             )
-            val survivalPack = container.survivalPackRepository.findFor(activeSettings.selectedCategory)
+            val survivalPack = container.survivalPackRepository.findFor(activeCategory)
             val citationSummaries = buildCitationSummaries(retrieval)
             val streamingId = UUID.randomUUID().toString()
             _evidenceByMessage.value = _evidenceByMessage.value + (streamingId to retrieval)
@@ -241,11 +328,11 @@ class MainViewModel(
             )
             runCatching {
                 container.chatService.streamReply(
-                    history = previousMessages,
+                    history = previousMessages.takeLast(6),
                     question = effectiveQuestion,
                     retrieval = retrieval,
                     survivalPack = survivalPack,
-                    settings = activeSettings
+                    settings = activeSettings.copy(selectedCategory = activeCategory)
                 ).collect { message ->
                     _messages.value = _messages.value.map {
                         if (it.id == streamingId) {
@@ -264,14 +351,19 @@ class MainViewModel(
                     if (it.id == streamingId) it.copy(isStreaming = false) else it
                 }
                 val finalMessage = _messages.value.firstOrNull { it.id == streamingId }
+                val updated = sessionBefore.copy(
+                    title = buildSessionTitle(_messages.value),
+                    selectedCategory = activeCategory,
+                    summary = buildSessionSummary(_messages.value),
+                    updatedAt = System.currentTimeMillis()
+                )
+                _activeSession.value = updated
+                container.chatSessionRepository.upsertSession(updated)
+                container.chatSessionRepository.saveMessages(updated.id, _messages.value)
                 if (activeSettings.autoSpeakResponses && !finalMessage?.text.isNullOrBlank()) {
                     container.voiceController.speak(finalMessage!!.text)
                 }
-                _status.value = if (retrieval.isEmpty()) {
-                    "No supporting survival-pack chunks found. Swara will answer from general emergency guidance."
-                } else {
-                    null
-                }
+                _status.value = if (retrieval.isEmpty()) null else "Using local guide context."
             }.onFailure { throwable ->
                 _messages.value = _messages.value.map {
                     if (it.id == streamingId) {
@@ -283,10 +375,24 @@ class MainViewModel(
                         it
                     }
                 }
+                persistActiveSession()
                 _status.value = throwable.message
             }
             _busy.value = false
         }
+    }
+
+    private fun persistActiveSession() {
+        val messages = _messages.value
+        val session = _activeSession.value.copy(
+            title = buildSessionTitle(messages),
+            selectedCategory = _settings.value.selectedCategory,
+            summary = buildSessionSummary(messages),
+            updatedAt = System.currentTimeMillis()
+        )
+        _activeSession.value = session
+        container.chatSessionRepository.upsertSession(session)
+        container.chatSessionRepository.saveMessages(session.id, messages)
     }
 
     sealed interface UiEvent {
@@ -313,6 +419,10 @@ class MainViewModel(
         val voiceState: VoiceState = VoiceState.Idle,
         val settings: AppSettings = AppSettings(),
         val distributionServerState: DistributionServerState = DistributionServerState(),
+        val webHostServerState: WebHostServerState = WebHostServerState(),
+        val sessions: List<ChatSession> = emptyList(),
+        val activeSession: ChatSession = createSession(),
+        val lockedGuideCategory: EmergencyCategory? = null,
         val busy: Boolean = false,
         val status: String? = null
     )
@@ -329,15 +439,23 @@ class MainViewModel(
 
     private fun buildOperationalQuestion(
         question: String,
-        settings: AppSettings
+        settings: AppSettings,
+        summary: String
     ): String {
         val modeInstruction = when (settings.responseMode) {
             ResponseMode.QUICK_HELP -> "Quick Help: short, immediate survival actions."
             ResponseMode.DETAILED_STEPS -> "Detailed Steps: more complete guidance with practical checks."
         }
         return """
-            Emergency category: ${settings.selectedCategory.guidanceLabel}
-            Response mode: $modeInstruction
+            Session memory:
+            ${summary.ifBlank { "No earlier details." }}
+
+            Emergency category:
+            ${settings.selectedCategory.guidanceLabel}
+
+            Response mode:
+            $modeInstruction
+
             User situation:
             ${question.trim()}
         """.trimIndent()
@@ -363,5 +481,61 @@ class MainViewModel(
             }
             .filterNotNull()
             .sortedByDescending { it.score }
+    }
+}
+
+private fun createSession(): ChatSession {
+    val now = System.currentTimeMillis()
+    return ChatSession(
+        id = UUID.randomUUID().toString(),
+        title = "New chat",
+        createdAt = now,
+        updatedAt = now
+    )
+}
+
+private fun buildSessionTitle(messages: List<ChatMessage>): String {
+    val firstUser = messages.firstOrNull { it.role == Role.USER }?.text.orEmpty().trim()
+    if (firstUser.isBlank()) return "New chat"
+    return firstUser.replace(Regex("\\s+"), " ").take(36)
+}
+
+private fun buildSessionSummary(messages: List<ChatMessage>): String {
+    val older = messages.filter { it.text.isNotBlank() }.takeLast(8)
+    if (older.isEmpty()) return ""
+    return older.joinToString("\n") { message ->
+        val label = if (message.role == Role.USER) "User" else "Swara"
+        "$label: ${message.text.replace(Regex("\\s+"), " ").take(220)}"
+    }.take(1200)
+}
+
+private fun inferCategory(question: String): EmergencyCategory {
+    val text = question.lowercase(Locale.US)
+    return when {
+        listOf("bleed", "blood", "burn", "unconscious", "faint", "pain", "injury", "wound", "heat").any { it in text } ->
+            EmergencyCategory.MEDICAL
+        listOf("fire", "smoke", "flame", "burning", "gas").any { it in text } ->
+            EmergencyCategory.FIRE
+        listOf("flood", "water rising", "river", "rain", "drowning").any { it in text } ->
+            EmergencyCategory.FLOOD
+        listOf("earthquake", "shake", "shaking", "aftershock", "rubble").any { it in text } ->
+            EmergencyCategory.EARTHQUAKE
+        listOf("following", "threat", "violence", "attack", "fight", "rob", "unsafe").any { it in text } ->
+            EmergencyCategory.VIOLENCE
+        listOf("lost", "stranded", "forest", "trail", "battery low", "can't find").any { it in text } ->
+            EmergencyCategory.LOST
+        else -> EmergencyCategory.OTHER
+    }
+}
+
+private fun sanitizeMessages(messages: List<ChatMessage>): List<ChatMessage> {
+    val syntheticGuidePrompt = Regex(
+        "^Use the .+ Guide for this emergency\\.?$",
+        setOf(RegexOption.IGNORE_CASE)
+    )
+    return messages.filterNot { message ->
+        message.role == Role.USER && syntheticGuidePrompt.matches(message.text.trim())
+    }.filterNot { message ->
+        message.role == Role.ASSISTANT && message.text.trim().equals("Gemma model not installed", ignoreCase = true)
     }
 }

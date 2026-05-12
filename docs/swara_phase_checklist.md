@@ -7,7 +7,7 @@ Rule:
 - base-app capability does not count as done unless it has been adapted and validated for Swara
 
 Current focus:
-- finish `Phase 2`
+- validate `Phase 7` revision build on device
 
 ---
 
@@ -18,10 +18,10 @@ Current focus:
 | Phase 1: Swara Foundation | done | Swara shell, emergency-first framing, category entry, and build verification are in place. |
 | Phase 2: Emergency Brain | implemented_pending_device_validation | Swara response contract, mode rules, category guidance, safety boundaries, rendering, and TTS cleanup are implemented. |
 | Phase 3: Knowledge + Survival Pack | implemented_pending_device_validation | Bundled survival-pack grounding, metadata, and read-only Survival Book mode are implemented. |
-| Phase 4: Panic-Friendly UX | implemented_pending_device_validation | Guide-first home, separated chat flow, and duplicate heading cleanup are implemented. |
-| Phase 5: Lightweight Sharing | phase_5bc_implemented_pending_device_validation | QR/text sharing plus prototype local hotspot/LAN distribution server are implemented. |
-| Phase 6: Proof Package | not_started | No Swara-specific benchmark/proof package yet. |
-| Phase 7: Survival Node Roadmap | not_started | Roadmap only. |
+| Phase 4: Panic-Friendly UX | revised_pending_device_validation | Bottom navigation, simplified guide home, revised Ask flow, and settings hub are implemented. |
+| Phase 5: Lightweight Sharing | validated_plus_revised | QR/text sharing plus APK/model/guide local distribution are implemented and moved under Share App & Model. |
+| Phase 6: Proof Package | documentation_ready | Proof package guide is written; benchmark/eval artifacts still need device evidence. |
+| Phase 7: Revision + Survival Node Roadmap | implemented_pending_device_validation | UX revision, dummy guide marketplace, model setup UX, web host prototype, and local chat sessions are implemented. |
 
 ---
 
@@ -250,27 +250,50 @@ Checklist:
 
 ---
 
-## Phase 7: Survival Node Roadmap
+## Phase 7: Revision + Survival Node Roadmap
 
 Goal:
-- keep future distribution and host ideas documented without blocking MVP
+- reduce emergency cognitive load, prepare setup flows, and separate app/model sharing from browser Web Host
 
 Status:
-- `not_started`
+- `implemented_pending_device_validation`
 
 Checklist:
-- [ ] Hotspot/local host concept
-- [ ] Linux runner concept
-- [ ] Region-priority pack examples
-- [ ] Compression/split package roadmap
+- [x] Replace hamburger navigation with persistent bottom navigation
+- [x] Simplify Guide home and remove misleading header status
+- [x] Rename user-facing Pack wording to Guide
+- [x] Redesign guide detail around quick reading and top actions
+- [x] Replace dense Swara Kit with Settings tile hub
+- [x] Add dedicated Import Model page
+- [x] Preserve manual model import
+- [x] Add model download entry with safe unconfigured-source state
+- [x] Add dummy Knowledge Marketplace
+- [x] Add two simulated working guide downloads through real module install path
+- [x] Show added modules inside guide categories
+- [x] Move current APK/model/guide sharing into Share App & Model
+- [x] Add Web Host page separate from distribution server
+- [x] Add browser guide UI served from host phone
+- [x] Rework Ask mode into chat-first UI
+- [x] Add missing-model warning in Ask mode
+- [x] Add local chat sessions and persistence
+- [x] Add lightweight conversation memory injection
+- [x] Add lightweight category inference
+- [x] Rework prompt style toward human emergency guidance
+- [ ] Validate revised navigation on device
+- [ ] Validate marketplace module install on device
+- [ ] Validate Web Host receiver browser on device
+- [ ] Validate chat memory with multi-turn emergency prompt
+- [ ] Configure real Gemma model download source
+- [ ] Add AI endpoint to Web Host after native chat validation
 
 ---
 
 ## Immediate Execution Order
 
-1. Move into `Phase 3` survival pack grounding.
-2. Keep `Phase 4` panic-friendly polish tied to real-device screenshots.
-3. Use Phase 6 eval cases to test model behavior on-device.
+1. Validate Phase 7 revised UI on device.
+2. Capture screenshots for proof package.
+3. Use Phase 6 eval cases to test model behavior and memory on-device.
+4. Configure real model hosting only after license/source path is confirmed.
 
 ---
 
