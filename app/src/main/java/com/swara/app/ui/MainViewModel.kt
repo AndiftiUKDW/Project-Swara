@@ -158,7 +158,16 @@ class MainViewModel(
     }
 
     fun requestModelDownload() {
-        _status.value = "Model download source is not configured yet. Use Import manually or local sharing."
+        viewModelScope.launch {
+            _status.value = "Downloading Gemma 4 E2B model from Hugging Face..."
+            container.modelManager.downloadDefaultModel()
+            container.chatService.warmUpIfPossible()
+            _status.value = when (val state = container.modelManager.state.value) {
+                is ModelState.Error -> state.message
+                is ModelState.Ready -> "Gemma model ready."
+                else -> null
+            }
+        }
     }
 
     fun importModel(uri: Uri) {
@@ -333,7 +342,7 @@ class MainViewModel(
             )
             runCatching {
                 container.chatService.streamReply(
-                    history = previousMessages.takeLast(6),
+                    history = emptyList(),
                     question = effectiveQuestion,
                     retrieval = retrieval,
                     survivalPack = survivalPack,
@@ -463,7 +472,13 @@ class MainViewModel(
             $modeInstruction
 
             Conversation behavior:
-            ${if (isFollowUp) "This is a follow-up in the same emergency. Acknowledge the user's update and continue from the previous advice. Do not restart like this is the first message." else "This is the first message in this emergency. Start with immediate guidance."}
+            ${if (isFollowUp) "This is a follow-up in the same emergency. Answer the latest user update directly. Do not repeat the full previous checklist unless the user asks for it. Do not ask a question that the user already answered. If the user answers yes/no to your last question, adapt the next step to that answer." else "This is the first message in this emergency. Start with immediate guidance."}
+
+            Follow-up response shape:
+            - Start with one sentence that reacts to the latest user message.
+            - Give only the next 1 to 3 actions that changed or matter now.
+            - If nothing changes, say what to continue doing and stop.
+            - Ask a new question only if it changes the next action.
 
             User situation:
             ${question.trim()}

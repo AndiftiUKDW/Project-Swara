@@ -8,6 +8,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.swara.app.data.model.ChatMessage
 import com.swara.app.data.model.EmergencyCategory
+import com.swara.app.data.model.GuideModule
 import com.swara.app.data.model.ResponseMode
 import com.swara.app.data.model.Role
 import com.swara.app.data.model.SurvivalPackGuide
@@ -39,6 +40,40 @@ fun buildQrPayloadForPack(pack: SurvivalPackGuide): String {
         lines += "${index + 1}:${item.toQrLine()}"
     }
     val warning = pack.doNot.firstOrNull()?.toQrLine()
+    lines += if (warning.isNullOrBlank()) {
+        "END:MOVE AWAY FROM DANGER IF SAFE"
+    } else {
+        "END:${warning.take(QR_LINE_LIMIT)}"
+    }
+    return lines.joinToString("\n")
+}
+
+fun buildShareTextForModule(module: GuideModule): String {
+    return buildString {
+        appendLine("SWARA GUIDE")
+        appendLine(module.title)
+        appendLine("CATEGORY: ${module.category.label}")
+        appendLine("VERSION: ${module.version}")
+        appendLine()
+        appendLine("QUICK HELP")
+        module.quickHelp.forEachIndexed { index, item -> appendLine("${index + 1}. $item") }
+        appendLine()
+        appendLine("DO NOT")
+        module.doNot.forEachIndexed { index, item -> appendLine("${index + 1}. $item") }
+        appendLine()
+        appendLine("SOURCE: ${module.sourceName}")
+    }.trim()
+}
+
+fun buildQrPayloadForModule(module: GuideModule): String {
+    val lines = mutableListOf<String>()
+    lines += "SWARA/GUIDE/1"
+    lines += "CAT:${module.category.name}"
+    lines += "TITLE:${module.title.toQrLine().take(56)}"
+    module.quickHelp.take(5).forEachIndexed { index, item ->
+        lines += "${index + 1}:${item.toQrLine()}"
+    }
+    val warning = module.doNot.firstOrNull()?.toQrLine()
     lines += if (warning.isNullOrBlank()) {
         "END:MOVE AWAY FROM DANGER IF SAFE"
     } else {

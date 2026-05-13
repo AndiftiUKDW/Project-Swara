@@ -233,11 +233,18 @@ private fun SwaraScreen(
                                 tab = MainTab.ASK
                                 onAskGuide(it)
                             },
-                            onShowQr = {
+                            onShowPackQr = {
                                 qrPayload = QrPayload(
                                     title = "Share Guide",
                                     payload = buildQrPayloadForPack(it),
                                     preview = buildShareTextForPack(it)
+                                )
+                            },
+                            onShowModuleQr = {
+                                qrPayload = QrPayload(
+                                    title = "Share Guide",
+                                    payload = buildQrPayloadForModule(it),
+                                    preview = buildShareTextForModule(it)
                                 )
                             }
                         )
@@ -447,7 +454,8 @@ private fun GuideDetailScreen(
     guide: SurvivalPackGuide,
     onBack: () -> Unit,
     onAskGuide: (SurvivalPackGuide) -> Unit,
-    onShowQr: (SurvivalPackGuide) -> Unit
+    onShowPackQr: (SurvivalPackGuide) -> Unit,
+    onShowModuleQr: (com.swara.app.data.model.GuideModule) -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(20.dp),
@@ -467,11 +475,6 @@ private fun GuideDetailScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("Ask Swara about this")
                 }
-                OutlinedButton(onClick = { onShowQr(guide) }) {
-                    Icon(Icons.Default.QrCode, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Show QR")
-                }
             }
         }
         item {
@@ -481,7 +484,8 @@ private fun GuideDetailScreen(
                 quickHelp = guide.quickHelp,
                 detailedSteps = guide.detailedSteps,
                 doNot = guide.doNot,
-                source = guide.sourceLabel
+                source = guide.sourceLabel,
+                onShowQr = { onShowPackQr(guide) }
             )
         }
         if (guide.addedModules.isNotEmpty()) {
@@ -495,7 +499,8 @@ private fun GuideDetailScreen(
                     quickHelp = module.quickHelp,
                     detailedSteps = module.detailedSteps,
                     doNot = module.doNot,
-                    source = module.sourceName
+                    source = module.sourceName,
+                    onShowQr = { onShowModuleQr(module) }
                 )
             }
         }
@@ -509,13 +514,21 @@ private fun GuideContentCard(
     quickHelp: List<String>,
     detailedSteps: List<String>,
     doNot: List<String>,
-    source: String
+    source: String,
+    onShowQr: (() -> Unit)? = null
 ) {
     Card(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             if (summary.isNotBlank()) {
                 Text(summary, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            onShowQr?.let {
+                OutlinedButton(onClick = it) {
+                    Icon(Icons.Default.QrCode, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Show QR")
+                }
             }
             GuideSection("Quick Help", quickHelp, compact = true)
             GuideSection("Detailed Steps", detailedSteps, compact = true)
@@ -716,12 +729,20 @@ private fun MessageBubble(
                             Spacer(Modifier.width(6.dp))
                             Text("Share Guide")
                         }
-                        OutlinedButton(
+                        Surface(
                             onClick = onSpeak,
-                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(Icons.Default.VolumeUp, null, Modifier.size(16.dp))
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.VolumeUp,
+                                    contentDescription = "Speak answer",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
@@ -990,37 +1011,59 @@ private fun ImportModelPage(
 ) {
     PageColumn {
         TopRowTitle("Import Model", onBack)
-        ModelStatusCard(state.modelState, onPickModel)
+        ModelStatusCard(state.modelState)
         SettingsCard {
-            Text("Guide works without the model.", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Ask Swara needs Gemma 4 LiteRT-LM. Download it when internet is available, or import a local .litertlm file.")
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onDownloadModel) {
-                    Icon(Icons.Default.Download, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Download Gemma 4 Model")
-                }
-                OutlinedButton(onClick = onPickModel) {
-                    Icon(Icons.Default.UploadFile, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Import manually")
-                }
+            Text("Download model", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Use this when internet is available. The model is saved locally for offline Ask Swara.")
+            Button(
+                onClick = onDownloadModel,
+                enabled = state.modelState !is ModelState.Downloading && state.modelState != ModelState.Validating,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Download, null)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    when (val modelState = state.modelState) {
+                        is ModelState.Downloading -> modelState.progressPercent?.let { "Downloading $it%" } ?: "Downloading..."
+                        is ModelState.Ready -> "Download again / replace"
+                        else -> "Download Gemma 4 E2B"
+                    }
+                )
+            }
+            Text(
+                "Source: Hugging Face litert-community/gemma-4-E2B-it-litert-lm",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        SettingsCard {
+            Text("Import manually", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Use this if the model was downloaded elsewhere or received from local sharing.")
+            OutlinedButton(
+                onClick = onPickModel,
+                enabled = state.modelState !is ModelState.Downloading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.UploadFile, null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (state.modelState is ModelState.Ready) "Replace with .litertlm file" else "Choose .litertlm file")
             }
         }
-        InlineNotice("Download source is configurable. Manual import and local sharing remain fallback paths.")
+        InlineNotice("Guide works without the model. Ask Swara needs this LiteRT model installed on the device.")
     }
 }
 
 @Composable
-private fun ModelStatusCard(modelState: ModelState, onPickModel: () -> Unit) {
+private fun ModelStatusCard(modelState: ModelState) {
     SettingsCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Emergency, null, Modifier.size(34.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = when (modelState) {
                         ModelState.NotInstalled -> "No model imported"
+                        is ModelState.Downloading -> "Downloading model"
                         ModelState.Validating -> "Validating model"
                         ModelState.Loading -> "Loading model"
                         is ModelState.Ready -> "Model ready"
@@ -1030,15 +1073,13 @@ private fun ModelStatusCard(modelState: ModelState, onPickModel: () -> Unit) {
                 )
                 Text(
                     text = when (modelState) {
+                        is ModelState.Downloading -> modelState.progressPercent?.let { "$it% downloaded" } ?: "Connecting to Hugging Face..."
                         is ModelState.Ready -> modelState.modelPath.substringAfterLast('/')
                         is ModelState.Error -> modelState.message
-                        else -> "Gemma 4 LiteRT-LM"
+                        else -> "Gemma 4 E2B LiteRT-LM"
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            OutlinedButton(onClick = onPickModel) {
-                Text(if (modelState is ModelState.Ready) "Replace" else "Import")
             }
         }
     }
@@ -1390,62 +1431,86 @@ private fun shareText(context: android.content.Context, text: String) {
 private fun formatHumanMessage(text: String, isUser: Boolean): String {
     if (isUser) return text
     val raw = text
-        .replace(Regex("\\s+"), " ")
-        .replace(Regex("(?i)Avoid\\s*:\\s*(\\d+\\.\\s*)?Avoid\\s*:"), "Avoid:")
-        .replace(Regex("(?i)Avoid\\s*:\\s*(\\d+\\.\\s*)"), "Avoid:\n$1")
-        .replace(Regex("(?i)Do this now\\s*:\\s*(\\d+\\.\\s*)?Do this now\\s*:"), "Do this now:")
-        .replace(Regex("(?i)Do this now\\s*:\\s*(\\d+\\.\\s*)"), "Do this now:\n$1")
-        .replace(Regex("(?i)(^|\\s)(\\d+\\.\\s*)Avoid\\s*:\\s*"), " $2")
-        .replace(Regex("(?i)(^|\\s)(\\d+\\.\\s*)Avoid\\s*-\\s*"), " $2")
-        .replace(Regex("(?i)(^|\\s)(\\d+\\.\\s*)Do this now\\s*:\\s*"), " $2")
-        .replace(Regex("(?i)(^|\\s)(\\d+\\.\\s*)Do this now\\s*-\\s*"), " $2")
-        .replace(Regex("(?i)\\bDo this now\\s*:?\\s*"), "\nDo this now:\n")
-        .replace(Regex("(?i)\\bAvoid\\s*:?\\s*"), "\nAvoid:\n")
-        .replace(Regex("(?<=[a-z])(?=Can you|Are you|Is the|Do you)", RegexOption.IGNORE_CASE), "\n\n")
-        .replace(Regex("(?i)^\\s*RISK\\s*:?\\s*"), "")
-        .replace(Regex("(?i)\\bSITUATION\\b\\s*:?\\s*"), "\n\n")
-        .replace(Regex("(?i)\\bDO NOW\\b\\s*:?\\s*"), "\n\nDo this now:\n")
-        .replace(Regex("(?i)\\bDO NOT\\b\\s*:?\\s*"), "\n\nAvoid:\n")
-        .replace(Regex("(?i)\\bNEXT QUESTION\\b\\s*:?\\s*"), "\n\nQuestion:\n")
+        .replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .replace(Regex("[ \t]+"), " ")
+        .replace(Regex("(?i)\\b(RISK|SITUATION|DO NOW|DO NOT|NEXT QUESTION|QUESTION)\\b\\s*:?"), "\n")
+        .replace(Regex("(?i)\\bDo this now\\b\\s*:?"), "\n")
+        .replace(Regex("(?i)\\b(Safety warnings|Warnings|Avoid)\\b\\s*:?"), "\n__SWARA_WARNING__\n")
+        .replace(Regex("(?<=[a-z])(?=Can you|Are you|Is the|Do you|What is|Where is)", RegexOption.IGNORE_CASE), "\n\n")
         .replace(Regex("(?<!\\n)(\\d+\\.\\s*)"), "\n$1")
         .replace(Regex("\\n\\s+"), "\n")
         .replace(Regex("\\n{3,}"), "\n\n")
-        .replace(Regex("(?i)Avoid:\\n(\\d+)\\.\\nAvoid:\\n"), "Avoid:\n$1. ")
-        .replace(Regex("(?i)Do this now:\\n(\\d+)\\.\\nDo this now:\\n"), "Do this now:\n$1. ")
         .trim()
     val cleaned = mutableListOf<String>()
-    var lastHeading = ""
+    var pendingNumber: String? = null
+    var warningMode = false
     raw.lines()
         .map { it.trim() }
         .filter { it.isNotBlank() }
         .forEach { line ->
-            val lineWithoutOrphanNumber = line.replace(Regex("^\\d+\\.\\s*(?=(Do this now|Avoid):$)", RegexOption.IGNORE_CASE), "")
-            val heading = when {
-                lineWithoutOrphanNumber.equals("Do this now:", ignoreCase = true) -> "Do this now:"
-                lineWithoutOrphanNumber.equals("Avoid:", ignoreCase = true) -> "Avoid:"
-                lineWithoutOrphanNumber.equals("Question:", ignoreCase = true) -> "Question:"
-                else -> ""
+            if (line == "__SWARA_WARNING__") {
+                warningMode = true
+                return@forEach
             }
-            if (heading.isNotBlank()) {
-                if (lastHeading != heading) {
-                    cleaned += heading
-                    lastHeading = heading
-                }
+
+            val orphanNumber = Regex("^(\\d+)\\.$").matchEntire(line)
+            if (orphanNumber != null) {
+                pendingNumber = "${orphanNumber.groupValues[1]}."
+                return@forEach
+            }
+
+            val numberedAvoid = Regex("^(\\d+)\\.\\s*Avoid\\s*:?\\s*(.*)$", RegexOption.IGNORE_CASE).matchEntire(line)
+            var normalizedLine = if (numberedAvoid != null) {
+                warningMode = true
+                pendingNumber = "${numberedAvoid.groupValues[1]}."
+                numberedAvoid.groupValues[2].trim()
             } else {
-                val normalizedLine = lineWithoutOrphanNumber
-                    .replace(Regex("^\\d+\\.\\s*(Avoid|Do this now):\\s*", RegexOption.IGNORE_CASE), "")
-                    .replace(Regex("^(Avoid|Do this now):\\s*", RegexOption.IGNORE_CASE), "")
+                line
+                    .replace(Regex("^Avoid\\s*:?\\s*", RegexOption.IGNORE_CASE), "")
+                    .replace(Regex("^Do this now\\s*:?\\s*", RegexOption.IGNORE_CASE), "")
                     .trim()
-                if (normalizedLine.isNotBlank()) {
-                    cleaned += normalizedLine
-                    lastHeading = ""
+            }
+
+            if (normalizedLine.isBlank()) return@forEach
+
+            val isQuestion = Regex("^(Can you|Are you|Is the|Do you|What is|Where is)\\b", RegexOption.IGNORE_CASE)
+                .containsMatchIn(normalizedLine)
+            if (isQuestion) warningMode = false
+            val contentWithoutNumber = normalizedLine.replace(Regex("^\\d+\\.\\s*"), "")
+            if (warningMode && contentWithoutNumber.startsLikeActionLine()) {
+                warningMode = false
+            }
+
+            if (warningMode && !isQuestion) {
+                normalizedLine = normalizedLine.replace(Regex("^\\d+\\.\\s*"), "")
+                if (!normalizedLine.startsWithSafetyVerb()) {
+                    normalizedLine = "Do not ${normalizedLine.replaceFirstChar { it.lowercase() }}"
                 }
             }
+
+            val displayLine = if (pendingNumber != null) {
+                "${pendingNumber} $normalizedLine"
+            } else {
+                normalizedLine
+            }
+            cleaned += displayLine
+            pendingNumber = null
         }
     return cleaned.joinToString("\n")
-        .replace(Regex("(?i)Avoid:\\nAvoid:\\n"), "Avoid:\n")
-        .replace(Regex("(?i)Do this now:\\nDo this now:\\n"), "Do this now:\n")
+        .replace(Regex("\\n{3,}"), "\n\n")
         .trim()
+}
+
+private fun String.startsWithSafetyVerb(): Boolean {
+    return Regex("^(do not|don't|never|avoid)\\b", RegexOption.IGNORE_CASE).containsMatchIn(trim())
+}
+
+private fun String.startsLikeActionLine(): Boolean {
+    return Regex(
+        "^(if|apply|call|continue|check|contact|give|stay|use|press|keep|signal|get|go|leave|move\\s+(to|away|quickly|toward|yourself|uphill|inside|outside))\\b",
+        RegexOption.IGNORE_CASE
+    ).containsMatchIn(trim())
 }
 
 private data class QrPayload(

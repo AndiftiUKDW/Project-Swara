@@ -137,13 +137,11 @@ class GemmaChatService(
                 - Sound like a calm human emergency guide, not a form.
                 - Start with one short sentence about urgency or risk.
                 - Prefer short paragraphs and numbered action lines.
-                - If you use headings, use each heading once only.
-                - Good heading examples: "Do this now:" and "Avoid:".
+                - Do not use section headings.
+                - Do not write warning labels as headings or inside any list item.
+                - Write warnings as normal numbered sentences that start with "Do not" or "Never".
                 - Ask at most one critical follow-up question.
                 - Keep numbered steps on separate lines.
-                - Never write duplicated headings like "Avoid: Avoid:".
-                - Never write "Avoid:" inside an avoid-list item.
-                - Bad: "1. Avoid: remove the object"
                 - Good: "1. Do not remove the object"
                 - Output plain text only. Do not wrap the answer in code fences.
                 - Never emit raw source headers like "[Source: ...]".
@@ -191,13 +189,11 @@ class GemmaChatService(
             - Sound like a calm human emergency guide, not a form.
             - Start with one short sentence about urgency or risk.
             - Prefer short paragraphs and numbered action lines.
-            - If you use headings, use each heading once only.
-            - Good heading examples: "Do this now:" and "Avoid:".
+            - Do not use section headings.
+            - Do not write warning labels as headings or inside any list item.
+            - Write warnings as normal numbered sentences that start with "Do not" or "Never".
             - Ask at most one critical follow-up question.
             - Keep numbered steps on separate lines.
-            - Never write duplicated headings like "Avoid: Avoid:".
-            - Never write "Avoid:" inside an avoid-list item.
-            - Bad: "1. Avoid: remove the object"
             - Good: "1. Do not remove the object"
             - Output plain text only. Do not wrap the answer in code fences.
             - Never output raw source headers like "[Source: ...]".
@@ -235,7 +231,7 @@ class GemmaChatService(
             Use these as the primary safety facts when relevant.
             Immediate guidance:
             ${primarySteps.toNumberedLines()}
-            Avoid:
+            Unsafe actions to prevent:
             ${survivalPack.doNot.toNumberedLines()}
             Useful supplies:
             ${survivalPack.kit.joinToString(", ")}
@@ -247,13 +243,13 @@ class GemmaChatService(
             ResponseMode.QUICK_HELP -> """
                 Mode: Quick Help.
                 Keep the whole answer short.
-                Use 3 or fewer action steps and 2 or fewer avoid/warning steps.
+                Use 3 or fewer action steps and 2 or fewer safety warning steps.
                 Each step should be one short sentence.
             """.trimIndent()
             ResponseMode.DETAILED_STEPS -> """
                 Mode: Detailed Steps.
                 Provide more complete guidance, but keep it practical.
-                Use 4 to 7 action steps and 2 to 4 avoid/warning steps.
+                Use 4 to 7 action steps and 2 to 4 safety warning steps.
                 Add brief condition checks when they change the action.
             """.trimIndent()
         }
@@ -261,12 +257,10 @@ class GemmaChatService(
             $modeRule
 
             Human response structure:
-            First sentence: direct urgency/risk statement, for example "This sounds urgent."
-
-            Include:
-            - A short risk/urgency sentence.
-            - Immediate survival actions.
-            - Unsafe actions to avoid.
+            - First line: one direct urgency/risk sentence, for example "This sounds urgent."
+            - Then write numbered action steps only.
+            - If a warning is needed, make it a numbered sentence: "Do not remove embedded objects."
+            - Do not use headings such as RISK, SITUATION, DO NOW, DO NOT, NEXT QUESTION, warning labels, or action labels.
             - One critical question only if it changes the next instruction.
         """.trimIndent()
     }
@@ -276,22 +270,22 @@ class GemmaChatService(
             EmergencyCategory.MEDICAL -> """
                 Medical emergency.
                 Prioritize scene safety, breathing, severe bleeding, consciousness, and safe positioning.
-                Avoid definitive diagnosis, medication dosing, or invasive procedures.
+                Do not give definitive diagnosis, medication dosing, or invasive procedures.
             """.trimIndent()
             EmergencyCategory.FIRE -> """
                 Fire emergency.
                 Prioritize leaving smoke/fire, staying low under smoke, checking door heat, and not re-entering.
-                Avoid advice that delays evacuation.
+                Do not give advice that delays evacuation.
             """.trimIndent()
             EmergencyCategory.FLOOD -> """
                 Flood emergency.
                 Prioritize moving to higher ground, avoiding moving water, electricity hazards, and contaminated water.
-                Avoid advice to drive or walk through floodwater.
+                Do not advise driving or walking through floodwater.
             """.trimIndent()
             EmergencyCategory.EARTHQUAKE -> """
                 Earthquake emergency.
                 Prioritize drop-cover-hold during shaking, avoiding glass and unstable structures, and checking hazards after shaking stops.
-                Avoid advice to run outside during active shaking unless already outside in open space.
+                Do not advise running outside during active shaking unless already outside in open space.
             """.trimIndent()
             EmergencyCategory.VIOLENCE -> """
                 Violence or personal safety emergency.
@@ -301,7 +295,7 @@ class GemmaChatService(
             EmergencyCategory.LOST -> """
                 Lost or stranded emergency.
                 Prioritize staying visible, conserving battery, marking location, shelter, water safety, and signaling.
-                Avoid advice that causes unnecessary wandering or separation.
+                Do not give advice that causes unnecessary wandering or separation.
             """.trimIndent()
             EmergencyCategory.OTHER -> """
                 General emergency.

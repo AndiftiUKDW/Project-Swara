@@ -1,7 +1,9 @@
 package com.swara.app.services
 
 import com.swara.app.data.model.AppSettings
+import com.swara.app.data.model.ChatMessage
 import com.swara.app.data.model.EmergencyCategory
+import com.swara.app.data.model.Role
 import com.swara.app.data.repo.SurvivalPackRepository
 import kotlinx.coroutines.runBlocking
 import java.io.OutputStream
@@ -11,6 +13,8 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
@@ -27,6 +31,7 @@ class WebHostServer(
     @Volatile private var serverSocket: ServerSocket? = null
     @Volatile private var worker: Thread? = null
     private val running = AtomicBoolean(false)
+    private val webSessions = ConcurrentHashMap<String, MutableList<ChatMessage>>()
 
     fun start(): WebHostServerState {
         if (running.get()) return currentState("Web Host already running.")
@@ -73,13 +78,23 @@ class WebHostServer(
         val path = URLDecoder.decode(target.substringBefore("?"), StandardCharsets.UTF_8.name())
         val query = target.substringAfter("?", "")
         when (path) {
-            "/", "" -> sendText(socket, "text/html; charset=utf-8", askHtml())
+            "/", "" -> {
+                val sessionId = queryParameter(query, "sid").ifBlank { UUID.randomUUID().toString() }
+                sendText(socket, "text/html; charset=utf-8", askHtml(sessionId = sessionId))
+            }
             "/ask" -> {
+                val sessionId = queryParameter(query, "sid").ifBlank { UUID.randomUUID().toString() }
                 val question = queryParameter(query, "q")
+                if (queryParameter(query, "new") == "1") {
+                    webSessions.remove(sessionId)
+                    sendText(socket, "text/html; charset=utf-8", askHtml(sessionId = UUID.randomUUID().toString()))
+                    return
+                }
+                if (question.isNotBlank()) answerQuestion(sessionId, question)
                 sendText(
                     socket,
                     "text/html; charset=utf-8",
-                    askHtml(question = question, answer = question.takeIf { it.isNotBlank() }?.let(::answerQuestion))
+                    askHtml(sessionId = sessionId, question = "")
                 )
             }
             "/guides" -> sendText(socket, "text/html; charset=utf-8", guidesHtml())
@@ -88,14 +103,17 @@ class WebHostServer(
         }
     }
 
-    private fun askHtml(question: String = "", answer: String? = null): String {
+    private fun askHtml(sessionId: String, question: String = ""): String {
+        val messages = webSessions[sessionId].orEmpty()
         val conversation = buildString {
-            append("""<section class="bubble intro"><h2>Tell Swara what is happening.</h2><p>Gemma runs on the host phone. Use Guide for static steps.</p></section>""")
-            if (question.isNotBlank()) {
-                append("""<section class="bubble user"><h3>You</h3><p>${question.escapeHtml()}</p></section>""")
+            if (messages.isEmpty()) {
+                append("""<section class="bubble intro"><h2>Tell Swara what is happening.</h2><p>Gemma runs on the host phone. Use Guide for static steps.</p></section>""")
             }
-            answer?.let {
-                append("""<section class="bubble swara"><h3>Swara</h3><pre>${it.escapeHtml()}</pre></section>""")
+            messages.forEach { message ->
+                when (message.role) {
+                    Role.USER -> append("""<section class="bubble user"><h3>You</h3><p>${message.text.escapeHtml()}</p></section>""")
+                    Role.ASSISTANT -> append("""<section class="bubble swara"><h3>Swara</h3><pre>${message.text.escapeHtml()}</pre></section>""")
+                }
             }
         }
         return page(
@@ -103,12 +121,31 @@ class WebHostServer(
             active = "ask",
             body = conversation,
             composer = true,
+            sessionId = sessionId,
             question = question
         )
     }
 
     private fun guidesHtml(): String {
         val cards = survivalPackRepository.allPacks().joinToString("\n") { pack ->
+            val addedModules = pack.addedModules.joinToString("\n") { module ->
+                """
+                <article class="guide-card module-card">
+                  <p class="eyebrow">${module.category.label}</p>
+                  <h2>${module.title.escapeHtml()}</h2>
+                  <p>${module.summary.escapeHtml()}</p>
+                  <p class="source">Source: ${module.sourceName.escapeHtml()}</p>
+                  <details>
+                    <summary>Quick Help</summary>
+                    <ol>${module.quickHelp.joinToString("") { "<li>${it.escapeHtml()}</li>" }}</ol>
+                  </details>
+                  <details>
+                    <summary>Do Not</summary>
+                    <ol>${module.doNot.joinToString("") { "<li>${it.escapeHtml()}</li>" }}</ol>
+                  </details>
+                </article>
+                """.trimIndent()
+            }
             """
             <article class="guide-card">
               <p class="eyebrow">${pack.category.label}</p>
@@ -123,6 +160,7 @@ class WebHostServer(
                 <ol>${pack.doNot.joinToString("") { "<li>${it.escapeHtml()}</li>" }}</ol>
               </details>
             </article>
+            $addedModules
             """.trimIndent()
         }
         return page(
@@ -138,9 +176,10 @@ class WebHostServer(
         active: String,
         body: String,
         composer: Boolean,
+        sessionId: String = "",
         question: String = ""
     ): String {
-        val bottomPadding = if (composer) "106px" else "74px"
+        val bottomPadding = if (composer) "178px" else "96px"
         return """
 <!doctype html>
 <html>
@@ -153,23 +192,23 @@ class WebHostServer(
     *{box-sizing:border-box}body{margin:0;background:#161616;color:var(--ink);font-family:Arial,sans-serif;line-height:1.45}
     .app{min-height:100vh;display:flex;flex-direction:column;max-width:460px;margin:0 auto;background:var(--bg);position:relative}
     header{position:sticky;top:0;background:#071923;padding:22px 20px 12px;z-index:2}
-    .top{display:flex;align-items:center;gap:18px}.hamb{font-size:30px}.title{font-size:30px;font-weight:800}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:18px}.title{font-size:30px;font-weight:800}.new{color:var(--accent);text-decoration:none;font-weight:800;border:1px solid var(--line);border-radius:16px;padding:8px 12px}
     main{padding:18px 20px $bottomPadding;display:flex;flex-direction:column;gap:16px;flex:1}
     .bubble,.guide-card{background:var(--card);border-radius:26px;padding:18px}.user{background:var(--purple);margin-left:64px}.intro p{color:var(--muted)}
-    .swara pre{white-space:pre-wrap;font-family:inherit;font-size:16px;margin:0}.eyebrow{color:var(--accent);font-weight:700;margin:0 0 6px}
+    .swara pre{white-space:pre-wrap;font-family:inherit;font-size:16px;margin:0}.eyebrow,.source{color:var(--accent);font-weight:700;margin:0 0 6px}.module-card{border:1px solid var(--line)}
     h1,h2,h3{margin:.1rem 0 .7rem}p{color:var(--ink)}summary{cursor:pointer;font-weight:700;margin-top:12px}li{margin:8px 0}
-    .tabs{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(460px,100%);background:#211f25;display:flex;justify-content:space-around;padding:10px 10px 12px}
+    .tabs{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(460px,100%);background:#211f25;display:flex;justify-content:space-around;padding:10px 10px 14px;z-index:4}
     .tabs a{color:var(--muted);text-decoration:none;font-weight:700;padding:8px 18px;border-radius:18px}.tabs a.on{background:#5b5270;color:white}
-    form{position:fixed;left:50%;bottom:66px;transform:translateX(-50%);width:min(460px,100%);background:#071923;padding:8px 12px;display:flex;gap:10px;align-items:center}
+    form{position:fixed;left:50%;bottom:68px;transform:translateX(-50%);width:min(460px,100%);background:#071923;padding:10px 12px 12px;display:flex;gap:10px;align-items:center;z-index:5}
     input{flex:1;padding:15px 16px;border-radius:22px;border:2px solid var(--accent);background:#071923;color:var(--ink);font-size:16px;min-width:0}
     button{width:58px;height:58px;border-radius:22px;border:0;background:var(--purple);color:white;font-size:28px;font-weight:800}
   </style>
 </head>
 <body>
   <div class="app">
-    <header><div class="top"><div class="hamb">☰</div><div class="title">$title</div></div></header>
+    <header><div class="top"><div class="title">$title</div>${if (composer) """<a class="new" href="/ask?sid=${sessionId.escapeHtml()}&new=1">New</a>""" else ""}</div></header>
     <main>$body</main>
-    ${if (composer) """<form action="/ask" method="get"><input name="q" value="${question.escapeHtml()}" placeholder="Describe the emergency"><button>➤</button></form>""" else ""}
+    ${if (composer) """<form action="/ask" method="get"><input type="hidden" name="sid" value="${sessionId.escapeHtml()}"><input name="q" value="${question.escapeHtml()}" placeholder="Describe the emergency" autofocus><button>➤</button></form>""" else ""}
     <nav class="tabs"><a class="${if (active == "guide") "on" else ""}" href="/guides">Guide</a><a class="${if (active == "ask") "on" else ""}" href="/">Ask</a></nav>
   </div>
 </body>
@@ -177,16 +216,30 @@ class WebHostServer(
         """.trimIndent()
     }
 
-    private fun answerQuestion(question: String): String {
+    private fun answerQuestion(sessionId: String, question: String): String {
         return runCatching {
             runBlocking {
+                val messages = webSessions.getOrPut(sessionId) { mutableListOf() }
+                val previousMessages = messages.toList()
                 val category = inferCategory(question)
                 val pack = survivalPackRepository.findFor(category)
                 val settings = AppSettings(selectedCategory = category)
+                val userMessage = ChatMessage(
+                    id = UUID.randomUUID().toString(),
+                    role = Role.USER,
+                    text = question
+                )
+                messages += userMessage
+                val effectiveQuestion = buildWebOperationalQuestion(
+                    question = question,
+                    category = category,
+                    summary = buildWebSessionSummary(previousMessages),
+                    isFollowUp = previousMessages.any { it.role == Role.USER }
+                )
                 val pieces = StringBuilder()
                 chatService.streamReply(
                     history = emptyList(),
-                    question = question,
+                    question = effectiveQuestion,
                     retrieval = emptyList(),
                     survivalPack = pack,
                     settings = settings
@@ -198,9 +251,60 @@ class WebHostServer(
                         pieces.append(message.text)
                     }
                 }
-                pieces.toString().ifBlank { "No answer generated." }
+                val answer = pieces.toString().ifBlank { "No answer generated." }
+                messages += ChatMessage(
+                    id = UUID.randomUUID().toString(),
+                    role = Role.ASSISTANT,
+                    text = answer
+                )
+                answer
             }
-        }.getOrElse { it.message ?: "Swara could not answer from the host phone." }
+        }.getOrElse { error ->
+            val message = error.message ?: "Swara could not answer from the host phone."
+            webSessions.getOrPut(sessionId) { mutableListOf() } += ChatMessage(
+                id = UUID.randomUUID().toString(),
+                role = Role.ASSISTANT,
+                text = message
+            )
+            message
+        }
+    }
+
+    private fun buildWebOperationalQuestion(
+        question: String,
+        category: EmergencyCategory,
+        summary: String,
+        isFollowUp: Boolean
+    ): String {
+        return """
+            Session memory:
+            ${summary.ifBlank { "No earlier details." }}
+
+            Emergency category:
+            ${category.guidanceLabel}
+
+            Conversation behavior:
+            ${if (isFollowUp) "This is a follow-up in the same emergency. Answer the latest user update directly. Do not repeat the full previous checklist unless asked. Do not ask a question that the user already answered. If the user answers yes/no to your last question, adapt the next step to that answer." else "This is the first message in this emergency. Start with immediate guidance."}
+
+            Follow-up response shape:
+            - Start with one sentence that reacts to the latest user message.
+            - Give only the next 1 to 3 actions that changed or matter now.
+            - If nothing changes, say what to continue doing and stop.
+            - Ask a new question only if it changes the next action.
+
+            User situation:
+            ${question.trim()}
+        """.trimIndent()
+    }
+
+    private fun buildWebSessionSummary(messages: List<ChatMessage>): String {
+        return messages.filter { it.text.isNotBlank() }
+            .takeLast(8)
+            .joinToString("\n") { message ->
+                val label = if (message.role == Role.USER) "User" else "Swara"
+                "$label: ${message.text.replace(Regex("\\s+"), " ").take(220)}"
+            }
+            .take(1200)
     }
 
     private fun queryParameter(query: String, key: String): String {

@@ -53,6 +53,7 @@ data class ChatMessage(
 
 sealed interface ModelState {
     data object NotInstalled : ModelState
+    data class Downloading(val progressPercent: Int? = null) : ModelState
     data object Validating : ModelState
     data object Loading : ModelState
     data class Ready(val modelPath: String) : ModelState
