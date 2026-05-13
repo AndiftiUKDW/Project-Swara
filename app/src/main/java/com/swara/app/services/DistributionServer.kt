@@ -4,7 +4,6 @@ import android.content.Context
 import com.swara.app.data.repo.SurvivalPackRepository
 import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileInputStream
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.ServerSocket
@@ -13,8 +12,6 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 import kotlin.concurrent.thread
 
 data class DistributionServerState(
@@ -82,23 +79,9 @@ class DistributionServer(
             "/app.apk" -> {
                 val artifact = appInstallArtifact()
                 when (artifact) {
-                    is AppInstallArtifact.BundledUniversal -> sendAsset(
-                        socket = socket,
-                        assetPath = artifact.assetPath,
-                        contentType = "application/vnd.android.package-archive",
-                        downloadName = "Swara.apk"
-                    )
                     is AppInstallArtifact.SingleApk -> sendFile(socket, artifact.file, "application/vnd.android.package-archive", "Swara.apk")
-                    is AppInstallArtifact.SplitPackage -> sendNotFound(socket, "This sender install uses split APKs and no bundled universal APK is available. Download the APK package ZIP instead.")
+                    is AppInstallArtifact.SplitPackage -> sendNotFound(socket, "This sender install uses split APKs and cannot re-share an installable APK. Install Swara from a universal APK first.")
                     AppInstallArtifact.Unavailable -> sendNotFound(socket, "Swara APK is unavailable from this install.")
-                }
-            }
-            "/app-package.zip" -> {
-                val artifact = appInstallArtifact()
-                if (artifact is AppInstallArtifact.SplitPackage) {
-                    sendSplitApkZip(socket, artifact)
-                } else {
-                    sendNotFound(socket, "APK package ZIP is only needed for split APK installs.")
                 }
             }
             "/model" -> {
@@ -118,11 +101,13 @@ class DistributionServer(
         val modelAvailable = modelManager.currentModelPath()?.let(::File)?.exists() == true
         val artifact = appInstallArtifact()
         val appDownload = when (artifact) {
-            is AppInstallArtifact.BundledUniversal -> """<a href="/app.apk">Download Swara Universal APK</a>"""
-            is AppInstallArtifact.SingleApk -> """<a href="/app.apk">Download Swara APK</a>"""
+            is AppInstallArtifact.SingleApk -> """
+                <a href="/app.apk">Download Swara APK</a>
+                <p class="muted">This install is a single APK. Phones that install this file can share it again offline.</p>
+            """.trimIndent()
             is AppInstallArtifact.SplitPackage -> """
-                <a href="/app-package.zip">Download Swara APK Package ZIP</a>
-                <p class="muted">No bundled universal APK was found. This sender app is installed as split APKs, so a single browser APK would fail to install.</p>
+                <p class="warning">APK sharing unavailable from this install.</p>
+                <p class="muted">This sender was installed as split APKs. Install Swara from a universal APK first so it can be shared onward.</p>
             """.trimIndent()
             AppInstallArtifact.Unavailable -> """<p class="muted">Swara APK is unavailable from this install.</p>"""
         }
@@ -136,6 +121,7 @@ class DistributionServer(
                 body{font-family:sans-serif;background:#071923;color:#eef7f6;padding:24px;line-height:1.45}
                 a{display:block;margin:12px 0;padding:14px 16px;border:1px solid #8fd7d1;border-radius:14px;color:#eef7f6;text-decoration:none}
                 .muted{color:#b8c8c7}
+                .warning{color:#ffcfbd;font-weight:700}
               </style>
             </head>
             <body>
@@ -185,52 +171,6 @@ class DistributionServer(
         }
     }
 
-    private fun sendAsset(socket: Socket, assetPath: String, contentType: String, downloadName: String) {
-        val length = runCatching { context.assets.openFd(assetPath).use { it.length } }.getOrNull()
-        writeHeaders(
-            socket = socket,
-            status = "200 OK",
-            contentType = contentType,
-            contentLength = length,
-            contentDisposition = "attachment; filename=\"$downloadName\""
-        )
-        context.assets.open(assetPath).use { input ->
-            input.copyTo(socket.getOutputStream())
-            socket.getOutputStream().flush()
-        }
-    }
-
-    private fun sendSplitApkZip(socket: Socket, artifact: AppInstallArtifact.SplitPackage) {
-        writeHeaders(
-            socket = socket,
-            status = "200 OK",
-            contentType = "application/zip",
-            contentLength = null,
-            contentDisposition = "attachment; filename=\"Swara-apk-package.zip\""
-        )
-        ZipOutputStream(socket.getOutputStream()).use { zip ->
-            artifact.files.forEachIndexed { index, file ->
-                zip.putNextEntry(ZipEntry(if (index == 0) "base.apk" else "split-${index}.apk"))
-                FileInputStream(file).use { input -> input.copyTo(zip) }
-                zip.closeEntry()
-            }
-            zip.putNextEntry(ZipEntry("README.txt"))
-            zip.write(
-                """
-                Swara APK package
-
-                This sender device has Swara installed as split APKs.
-                A single base.apk may show "problem parsing package" on the receiver.
-
-                For demo install, prefer sharing a universal APK built from Android Studio/Gradle.
-                This ZIP preserves all split APK files for future package-installer support.
-                """.trimIndent().toByteArray(StandardCharsets.UTF_8)
-            )
-            zip.closeEntry()
-            zip.flush()
-        }
-    }
-
     private fun sendNotFound(socket: Socket, message: String) {
         val body = message.toByteArray(StandardCharsets.UTF_8)
         writeHeaders(socket, "404 Not Found", "text/plain; charset=utf-8", body.size.toLong())
@@ -255,9 +195,6 @@ class DistributionServer(
     }
 
     private fun appInstallArtifact(): AppInstallArtifact {
-        if (assetExists(UNIVERSAL_APK_ASSET)) {
-            return AppInstallArtifact.BundledUniversal(UNIVERSAL_APK_ASSET)
-        }
         val base = File(context.applicationInfo.sourceDir)
         val splitFiles = context.applicationInfo.splitSourceDirs
             ?.map(::File)
@@ -269,14 +206,6 @@ class DistributionServer(
         } else {
             AppInstallArtifact.SplitPackage(listOf(base) + splitFiles)
         }
-    }
-
-    private fun assetExists(assetPath: String): Boolean {
-        val folder = assetPath.substringBeforeLast("/", "")
-        val fileName = assetPath.substringAfterLast("/")
-        return runCatching {
-            context.assets.list(folder).orEmpty().contains(fileName)
-        }.getOrDefault(false)
     }
 
     private fun localIpAddress(): String? {
@@ -292,13 +221,8 @@ class DistributionServer(
     }
 
     private sealed interface AppInstallArtifact {
-        data class BundledUniversal(val assetPath: String) : AppInstallArtifact
         data class SingleApk(val file: File) : AppInstallArtifact
         data class SplitPackage(val files: List<File>) : AppInstallArtifact
         data object Unavailable : AppInstallArtifact
-    }
-
-    private companion object {
-        const val UNIVERSAL_APK_ASSET = "distribution/Swara.apk"
     }
 }
