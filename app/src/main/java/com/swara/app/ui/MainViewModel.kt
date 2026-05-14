@@ -472,12 +472,13 @@ class MainViewModel(
             $modeInstruction
 
             Conversation behavior:
-            ${if (isFollowUp) "This is a follow-up in the same emergency. Answer the latest user update directly. Do not repeat the full previous checklist unless the user asks for it. Do not ask a question that the user already answered. If the user answers yes/no to your last question, adapt the next step to that answer." else "This is the first message in this emergency. Start with immediate guidance."}
+            ${if (isFollowUp) "This is a follow-up in the same emergency. Reply to the user's latest answer like a person continuing the conversation. Do not restart the full checklist. Do not ask a question that the user already answered. If they answer yes/no, adapt the next step to that answer. Keep it warm, brief, and useful." else "This is the first message in this emergency. Start with practical guidance, but do not sound like a rigid call-center script."}
 
             Follow-up response shape:
-            - Start with one sentence that reacts to the latest user message.
-            - Give only the next 1 to 3 actions that changed or matter now.
-            - If nothing changes, say what to continue doing and stop.
+            - Start with a short natural reaction to the latest user message.
+            - Give only the next 1 to 3 things that matter now.
+            - If the user says help is not reachable, do not keep telling them to call help.
+            - If nothing changes, say what to keep doing and stop.
             - Ask a new question only if it changes the next action.
 
             User situation:
