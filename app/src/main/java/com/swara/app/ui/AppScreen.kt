@@ -1119,15 +1119,25 @@ private fun AddGuidesPage(
                 Text("Guide marketplace is demo mode. Two downloads are simulated but installed through the real module pipeline.")
             }
             item {
-                SettingsCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Add, null, Modifier.size(32.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("Import Guide", fontWeight = FontWeight.Bold)
-                            Text("Add your own PDF, TXT, or Markdown guide locally.")
+                Box(Modifier.clickable { onPickDocuments() }) {
+                    SettingsCard {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Import guide",
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { onPickDocuments() }
+                                    .padding(8.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Import Guide", fontWeight = FontWeight.Bold)
+                                Text("Add your own PDF, TXT, or Markdown guide locally.")
+                            }
+                            OutlinedButton(onClick = onPickDocuments) { Text("Import") }
                         }
-                        OutlinedButton(onClick = onPickDocuments) { Text("Import") }
                     }
                 }
             }
