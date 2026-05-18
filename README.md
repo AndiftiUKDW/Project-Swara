@@ -97,6 +97,3 @@ Main implementation areas:
 - Emergency guidance is informational and does not replace local emergency services, medical professionals, or official disaster response teams.
 - Model quality depends on the imported Gemma LiteRT-LM file and device runtime performance.
 
-## License
-
-No explicit license has been added yet. Add one before public release or external reuse.
